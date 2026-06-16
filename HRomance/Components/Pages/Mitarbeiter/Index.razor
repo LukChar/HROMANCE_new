@@ -30,6 +30,7 @@ else
     <table class="table table-striped">
         <thead>
             <tr>
+                <th>Aktionen</th>
                 <th>Personalnummer</th>
                 <th>Vorname</th>
                 <th>Nachname</th>
@@ -42,6 +43,23 @@ else
             @foreach (var mitarbeiter in mitarbeiterListe)
             {
                 <tr>
+                    <td>
+                        <button class="btn btn-info btn-sm me-2"
+                                @onclick="() => Details(mitarbeiter.Id)">
+                            Details
+                        </button>
+
+                        <button class="btn btn-warning btn-sm me-2"
+                                @onclick="() => Bearbeiten(mitarbeiter.Id)">
+                            Bearbeiten
+                        </button>
+
+                        <button class="btn btn-danger btn-sm"
+                                @onclick="() => Loeschen(mitarbeiter.Id)">
+                            Löschen
+                        </button>
+                    </td>
+
                     <td>@mitarbeiter.Personalnummer</td>
                     <td>@mitarbeiter.Vorname</td>
                     <td>@mitarbeiter.Nachname</td>
@@ -66,4 +84,25 @@ else
     {
         Navigation.NavigateTo("/mitarbeiter/create");
     }
+
+    private void Bearbeiten(int id)
+    {
+        Navigation.NavigateTo($"/mitarbeiter/edit/{id}");
+    }
+
+    private async Task Loeschen(int id)
+    {
+        await MitarbeiterService.DeleteAsync(id);
+
+        mitarbeiterListe = await MitarbeiterService.GetAllAsync();
+
+        StateHasChanged();
+    }
+
+    private void Details(int id)
+    {
+        Navigation.NavigateTo($"/mitarbeiter/details/{id}");
+    }
+
+    
 }

@@ -1,6 +1,69 @@
-﻿namespace HRomance.Components.Pages.Mitarbeiter
+﻿@page "/mitarbeiter/edit/{Id:int}"
+@rendermode InteractiveServer
+
+@using HRomance.Models
+@using HRomance.Services
+
+@inject MitarbeiterService MitarbeiterService
+@inject NavigationManager Navigation
+
+<PageTitle>Mitarbeiter bearbeiten</PageTitle>
+
+<h3>Mitarbeiter bearbeiten</h3>
+
+@if (mitarbeiter == null)
 {
-    public class Edit
+    <p>Lade...</p>
+}
+else
+{
+    <EditForm Model="mitarbeiter" OnValidSubmit="Speichern">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label>Personalnummer</label>
+            <InputText class="form-control" @bind-Value="mitarbeiter.Personalnummer" />
+        </div>
+
+        <div class="mb-3">
+            <label>Vorname</label>
+            <InputText class="form-control" @bind-Value="mitarbeiter.Vorname" />
+        </div>
+
+        <div class="mb-3">
+            <label>Nachname</label>
+            <InputText class="form-control" @bind-Value="mitarbeiter.Nachname" />
+        </div>
+
+        <div class="mb-3">
+            <label>Qualifikation</label>
+            <InputText class="form-control" @bind-Value="mitarbeiter.Qualifikation" />
+        </div>
+
+        <button class="btn btn-success" type="submit">
+            Speichern
+        </button>
+    </EditForm>
+}
+
+@code {
+
+    [Parameter]
+    public int Id { get; set; }
+
+    private Mitarbeiter? mitarbeiter;
+
+    protected override async Task OnInitializedAsync()
     {
+        mitarbeiter = await MitarbeiterService.GetByIdAsync(Id);
     }
+
+    private async Task Speichern()
+    {
+        await MitarbeiterService.UpdateAsync(mitarbeiter!);
+
+        Navigation.NavigateTo("/mitarbeiter");
+    }
+
 }

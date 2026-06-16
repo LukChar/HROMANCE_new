@@ -1,6 +1,59 @@
-﻿namespace HRomance.Components.Pages.Mitarbeiter
+﻿@page "/mitarbeiter/details/{Id:int}"
+@rendermode InteractiveServer
+
+@using HRomance.Models
+@using HRomance.Services
+
+@inject MitarbeiterService MitarbeiterService
+@inject NavigationManager Navigation
+
+<PageTitle>Mitarbeiterdetails</PageTitle>
+
+<h3>Mitarbeiterdetails</h3>
+
+@if (mitarbeiter == null)
 {
-    public class Details
+    <p>Lade Daten...</p>
+}
+else
+{
+    <div class="card">
+        <div class="card-body">
+
+            <p><strong>Personalnummer:</strong> @mitarbeiter.Personalnummer</p>
+
+            <p><strong>Vorname:</strong> @mitarbeiter.Vorname</p>
+
+            <p><strong>Nachname:</strong> @mitarbeiter.Nachname</p>
+
+            <p><strong>Qualifikation:</strong> @mitarbeiter.Qualifikation</p>
+
+            <p><strong>Verfügbar:</strong> @(mitarbeiter.Verfuegbar ? "Ja" : "Nein")</p>
+
+            <button class="btn btn-secondary"
+                    @onclick="Zurueck">
+                Zurück
+            </button>
+
+        </div>
+    </div>
+}
+
+@code {
+
+    [Parameter]
+    public int Id { get; set; }
+
+    private Mitarbeiter? mitarbeiter;
+
+    protected override async Task OnInitializedAsync()
     {
+        mitarbeiter = await MitarbeiterService.GetByIdAsync(Id);
     }
+
+    private void Zurueck()
+    {
+        Navigation.NavigateTo("/mitarbeiter");
+    }
+
 }
