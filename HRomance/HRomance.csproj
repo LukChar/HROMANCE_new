@@ -20,10 +20,4 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.8" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Components\Pages\Matching\" />
-    <Folder Include="Components\Pages\Administration\" />
-    <Folder Include="Components\Pages\Dashboard\" />
-  </ItemGroup>
-
 </Project>
