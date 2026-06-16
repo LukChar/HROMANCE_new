@@ -1,6 +1,71 @@
-﻿namespace HRomance.Components.Pages.Mitarbeiter
-{
-    public class Create
+﻿@page "/mitarbeiter/create"
+
+@using HRomance.Models
+@using HRomance.Services
+
+@inject MitarbeiterService MitarbeiterService
+@inject NavigationManager Navigation
+
+<PageTitle>Neuer Mitarbeiter</PageTitle>
+
+<h3>Neuen Mitarbeiter anlegen</h3>
+
+<EditForm Model="mitarbeiter" OnValidSubmit="Speichern">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label class="form-label">Personalnummer</label>
+        <InputText class="form-control" @bind-Value="mitarbeiter.Personalnummer" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Vorname</label>
+        <InputText class="form-control" @bind-Value="mitarbeiter.Vorname" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Nachname</label>
+        <InputText class="form-control" @bind-Value="mitarbeiter.Nachname" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Qualifikation</label>
+        <InputText class="form-control" @bind-Value="mitarbeiter.Qualifikation" />
+    </div>
+
+    <div class="form-check mb-3">
+        <InputCheckbox class="form-check-input" @bind-Value="mitarbeiter.Verfuegbar" />
+        <label class="form-check-label">
+            Verfügbar
+        </label>
+    </div>
+
+    <button type="submit" class="btn btn-primary">
+        Speichern
+    </button>
+
+    <button type="button"
+            class="btn btn-secondary ms-2"
+            @onclick="Zurueck">
+        Abbrechen
+    </button>
+
+</EditForm>
+
+@code {
+
+    private Mitarbeiter mitarbeiter = new();
+
+    private async Task Speichern()
     {
+        await MitarbeiterService.AddAsync(mitarbeiter);
+
+        Navigation.NavigateTo("/mitarbeiter");
+    }
+
+    private void Zurueck()
+    {
+        Navigation.NavigateTo("/mitarbeiter");
     }
 }

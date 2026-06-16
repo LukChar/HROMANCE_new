@@ -1,41 +1,69 @@
 ﻿@page "/mitarbeiter"
+@rendermode InteractiveServer
+
+@using HRomance.Models
+@using HRomance.Services
+
+@inject MitarbeiterService MitarbeiterService
+@inject NavigationManager Navigation
+
+<PageTitle>Mitarbeiter</PageTitle>
 
 <h3>Mitarbeiterverwaltung</h3>
 
-<hr />
-
-<button class="btn btn-primary">
+<button type="button" class="btn btn-primary mb-3" @onclick="@NeuerMitarbeiter">
     Neuer Mitarbeiter
 </button>
 
-<table class="table table-striped mt-3">
+@if (mitarbeiterListe == null)
+{
+    <p>Lade Daten...</p>
+}
+else if (!mitarbeiterListe.Any())
+{
+    <div class="alert alert-info">
+        Es sind keine Mitarbeiter vorhanden.
+    </div>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Personalnummer</th>
+                <th>Vorname</th>
+                <th>Nachname</th>
+                <th>Qualifikation</th>
+                <th>Verfügbar</th>
+            </tr>
+        </thead>
 
-    <thead>
-        <tr>
-            <th>Personalnummer</th>
-            <th>Vorname</th>
-            <th>Nachname</th>
-            <th>Abteilung</th>
-            <th>Status</th>
-        </tr>
-    </thead>
+        <tbody>
+            @foreach (var mitarbeiter in mitarbeiterListe)
+            {
+                <tr>
+                    <td>@mitarbeiter.Personalnummer</td>
+                    <td>@mitarbeiter.Vorname</td>
+                    <td>@mitarbeiter.Nachname</td>
+                    <td>@mitarbeiter.Qualifikation</td>
+                    <td>@(mitarbeiter.Verfuegbar ? "Ja" : "Nein")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
 
-    <tbody>
-        <tr>
-            <td>1001</td>
-            <td>Max</td>
-            <td>Mustermann</td>
-            <td>Vertrieb</td>
-            <td>Aktiv</td>
-        </tr>
+@code
+{
+    private List<Mitarbeiter> mitarbeiterListe = new();
 
-        <tr>
-            <td>1002</td>
-            <td>Anna</td>
-            <td>Schmidt</td>
-            <td>Disposition</td>
-            <td>Aktiv</td>
-        </tr>
-    </tbody>
+    protected override async Task OnInitializedAsync()
+    {
+        mitarbeiterListe = await MitarbeiterService.GetAllAsync();
+    }
 
-</table>
+    private void NeuerMitarbeiter()
+    {
+        Navigation.NavigateTo("/mitarbeiter/create");
+    }
+}
