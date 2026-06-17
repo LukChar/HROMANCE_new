@@ -15,10 +15,25 @@
     Neuer Mitarbeiter
 </button>
 
-<div class="mb-3">
-    <InputText class="form-control"
-               @bind-Value="suchbegriff"
-               placeholder="Nach Personalnummer, Vorname, Nachname oder Qualifikation suchen..." />
+<div class="row mb-3">
+
+    <div class="col-md-8">
+        <InputText class="form-control"
+                   @bind-Value="suchbegriff"
+                   placeholder="Suche nach Personalnummer, Vorname, Nachname oder Qualifikation..." />
+    </div>
+
+    <div class="col-md-4">
+        <InputSelect class="form-select"
+                     @bind-Value="verfuegbarFilter">
+
+            <option value="">Alle</option>
+            <option value="true">Verfügbar</option>
+            <option value="false">Nicht verfügbar</option>
+
+        </InputSelect>
+    </div>
+
 </div>
 
 @if (!mitarbeiterListe.Any())
@@ -42,12 +57,15 @@ else
         </thead>
 
         <tbody>
-            @foreach (var mitarbeiter in mitarbeiterListe.Where(m =>
-                string.IsNullOrWhiteSpace(suchbegriff)
+            @foreach (var mitarbeiter in mitarbeiterListe
+               .Where(m =>(string.IsNullOrWhiteSpace(suchbegriff)
                 || m.Personalnummer.Contains(suchbegriff, StringComparison.OrdinalIgnoreCase)
                 || m.Vorname.Contains(suchbegriff, StringComparison.OrdinalIgnoreCase)
                 || m.Nachname.Contains(suchbegriff, StringComparison.OrdinalIgnoreCase)
-                || m.Qualifikation.Contains(suchbegriff, StringComparison.OrdinalIgnoreCase)))
+                || m.Qualifikation.Contains(suchbegriff, StringComparison.OrdinalIgnoreCase))
+        &&
+        (!verfuegbarFilter.HasValue || m.Verfuegbar == verfuegbarFilter.Value)
+    ))
             {
                 <tr>
                     <td>
@@ -83,6 +101,8 @@ else
     private List<Mitarbeiter> mitarbeiterListe = new();
 
     private string suchbegriff = string.Empty;
+
+    private bool? verfuegbarFilter = null;
 
     protected override async Task OnInitializedAsync()
     {

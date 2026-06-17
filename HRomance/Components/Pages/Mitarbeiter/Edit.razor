@@ -13,7 +13,7 @@
 
 @if (mitarbeiter == null)
 {
-    <p>Lade...</p>
+    <p>Lade Daten...</p>
 }
 else
 {
@@ -22,28 +22,48 @@ else
         <ValidationSummary />
 
         <div class="mb-3">
-            <label>Personalnummer</label>
-            <InputText class="form-control" @bind-Value="mitarbeiter.Personalnummer" />
+            <label class="form-label">Personalnummer</label>
+            <InputText class="form-control"
+                       @bind-Value="mitarbeiter.Personalnummer" />
         </div>
 
         <div class="mb-3">
-            <label>Vorname</label>
-            <InputText class="form-control" @bind-Value="mitarbeiter.Vorname" />
+            <label class="form-label">Vorname</label>
+            <InputText class="form-control"
+                       @bind-Value="mitarbeiter.Vorname" />
         </div>
 
         <div class="mb-3">
-            <label>Nachname</label>
-            <InputText class="form-control" @bind-Value="mitarbeiter.Nachname" />
+            <label class="form-label">Nachname</label>
+            <InputText class="form-control"
+                       @bind-Value="mitarbeiter.Nachname" />
         </div>
 
         <div class="mb-3">
-            <label>Qualifikation</label>
-            <InputText class="form-control" @bind-Value="mitarbeiter.Qualifikation" />
+            <label class="form-label">Qualifikation</label>
+            <InputText class="form-control"
+                       @bind-Value="mitarbeiter.Qualifikation" />
         </div>
 
-        <button class="btn btn-success" type="submit">
+        <div class="form-check mb-3">
+            <InputCheckbox class="form-check-input"
+                           @bind-Value="mitarbeiter.Verfuegbar" />
+
+            <label class="form-check-label">
+                Verfügbar
+            </label>
+        </div>
+
+        <button class="btn btn-success me-2" type="submit">
             Speichern
         </button>
+
+        <button class="btn btn-secondary"
+                type="button"
+                @onclick="Zurueck">
+            Abbrechen
+        </button>
+
     </EditForm>
 }
 
@@ -61,8 +81,15 @@ else
 
     private async Task Speichern()
     {
-        await MitarbeiterService.UpdateAsync(mitarbeiter!);
+        if (mitarbeiter != null)
+        {
+            await MitarbeiterService.UpdateAsync(mitarbeiter);
+            Navigation.NavigateTo("/mitarbeiter");
+        }
+    }
 
+    private void Zurueck()
+    {
         Navigation.NavigateTo("/mitarbeiter");
     }
 
