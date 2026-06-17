@@ -11,15 +11,17 @@
 
 <h3>Mitarbeiterverwaltung</h3>
 
-<button type="button" class="btn btn-primary mb-3" @onclick="@NeuerMitarbeiter">
+<button type="button" class="btn btn-primary mb-3" @onclick="NeuerMitarbeiter">
     Neuer Mitarbeiter
 </button>
 
-@if (mitarbeiterListe == null)
-{
-    <p>Lade Daten...</p>
-}
-else if (!mitarbeiterListe.Any())
+<div class="mb-3">
+    <InputText class="form-control"
+               @bind-Value="suchbegriff"
+               placeholder="Nach Personalnummer, Vorname, Nachname oder Qualifikation suchen..." />
+</div>
+
+@if (!mitarbeiterListe.Any())
 {
     <div class="alert alert-info">
         Es sind keine Mitarbeiter vorhanden.
@@ -27,7 +29,7 @@ else if (!mitarbeiterListe.Any())
 }
 else
 {
-    <table class="table table-striped">
+    <table class="table table-striped table-hover">
         <thead>
             <tr>
                 <th>Aktionen</th>
@@ -40,7 +42,12 @@ else
         </thead>
 
         <tbody>
-            @foreach (var mitarbeiter in mitarbeiterListe)
+            @foreach (var mitarbeiter in mitarbeiterListe.Where(m =>
+                string.IsNullOrWhiteSpace(suchbegriff)
+                || m.Personalnummer.Contains(suchbegriff, StringComparison.OrdinalIgnoreCase)
+                || m.Vorname.Contains(suchbegriff, StringComparison.OrdinalIgnoreCase)
+                || m.Nachname.Contains(suchbegriff, StringComparison.OrdinalIgnoreCase)
+                || m.Qualifikation.Contains(suchbegriff, StringComparison.OrdinalIgnoreCase)))
             {
                 <tr>
                     <td>
@@ -75,6 +82,8 @@ else
 {
     private List<Mitarbeiter> mitarbeiterListe = new();
 
+    private string suchbegriff = string.Empty;
+
     protected override async Task OnInitializedAsync()
     {
         mitarbeiterListe = await MitarbeiterService.GetAllAsync();
@@ -95,14 +104,10 @@ else
         await MitarbeiterService.DeleteAsync(id);
 
         mitarbeiterListe = await MitarbeiterService.GetAllAsync();
-
-        StateHasChanged();
     }
 
     private void Details(int id)
     {
         Navigation.NavigateTo($"/mitarbeiter/details/{id}");
     }
-
-    
 }
