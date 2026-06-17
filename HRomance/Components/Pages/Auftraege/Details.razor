@@ -1,6 +1,89 @@
-﻿namespace HRomance.Components.Pages.Einsaetze
+﻿@page "/auftraege/details/{Id:int}"
+@rendermode InteractiveServer
+
+@using HRomance.Models
+@using HRomance.Services
+
+@inject AuftragService AuftragService
+@inject NavigationManager Navigation
+
+<PageTitle>Auftragsdetails</PageTitle>
+
+<h3>Auftragsdetails</h3>
+
+@if (auftrag == null)
 {
-    public class Details
+    <p>Lade Daten...</p>
+}
+else
+{
+    <div class="card">
+        <div class="card-body">
+
+            <div class="mb-3">
+                <strong>Titel:</strong><br />
+                @auftrag.Titel
+            </div>
+
+            <div class="mb-3">
+                <strong>Beschreibung:</strong><br />
+                @auftrag.Beschreibung
+            </div>
+
+            <div class="mb-3">
+                <strong>Einsatzort:</strong><br />
+                @auftrag.Einsatzort
+            </div>
+
+            <div class="mb-3">
+                <strong>Benötigte Qualifikation:</strong><br />
+                @auftrag.BenoetigteQualifikation
+            </div>
+
+            <div class="mb-3">
+                <strong>Startdatum:</strong><br />
+                @auftrag.Startdatum.ToShortDateString()
+            </div>
+
+            <div class="mb-3">
+                <strong>Enddatum:</strong><br />
+                @auftrag.Enddatum.ToShortDateString()
+            </div>
+
+            <div class="mb-3">
+                <strong>Kunde:</strong><br />
+                @auftrag.Kunde?.Firmenname
+            </div>
+
+            <div class="mb-3">
+                <strong>Besetzt:</strong><br />
+                @(auftrag.Besetzt ? "Ja" : "Nein")
+            </div>
+
+            <button class="btn btn-secondary"
+                    @onclick="Zurueck">
+                Zurück
+            </button>
+
+        </div>
+    </div>
+}
+
+@code {
+
+    [Parameter]
+    public int Id { get; set; }
+
+    private Auftrag? auftrag;
+
+    protected override async Task OnInitializedAsync()
     {
+        auftrag = await AuftragService.GetByIdAsync(Id);
     }
+
+    private void Zurueck()
+    {
+        Navigation.NavigateTo("/auftraege");
+    }
+
 }

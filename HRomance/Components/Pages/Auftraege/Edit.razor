@@ -1,6 +1,128 @@
-﻿namespace HRomance.Components.Pages.Einsaetze
+﻿@page "/auftraege/edit/{Id:int}"
+@rendermode InteractiveServer
+
+@using HRomance.Models
+@using HRomance.Services
+
+@inject AuftragService AuftragService
+@inject KundeService KundeService
+@inject NavigationManager Navigation
+
+<PageTitle>Auftrag bearbeiten</PageTitle>
+
+<h3>Auftrag bearbeiten</h3>
+
+@if (auftrag == null)
 {
-    public class Edit
+    <p>Lade Daten...</p>
+}
+else
+{
+    <EditForm Model="auftrag" OnValidSubmit="Speichern">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label class="form-label">Titel</label>
+            <InputText class="form-control"
+                       @bind-Value="auftrag.Titel" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Beschreibung</label>
+            <InputText class="form-control"
+                       @bind-Value="auftrag.Beschreibung" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Einsatzort</label>
+            <InputText class="form-control"
+                       @bind-Value="auftrag.Einsatzort" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Benötigte Qualifikation</label>
+            <InputText class="form-control"
+                       @bind-Value="auftrag.BenoetigteQualifikation" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Startdatum</label>
+            <InputDate class="form-control"
+                       @bind-Value="auftrag.Startdatum" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Enddatum</label>
+            <InputDate class="form-control"
+                       @bind-Value="auftrag.Enddatum" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Kunde</label>
+
+            <InputSelect class="form-select"
+                         @bind-Value="auftrag.KundeId">
+
+                @foreach (var kunde in kundenListe)
+                {
+                    <option value="@kunde.Id">
+                        @kunde.Firmenname
+                    </option>
+                }
+
+            </InputSelect>
+        </div>
+
+        <div class="form-check mb-3">
+            <InputCheckbox class="form-check-input"
+                           @bind-Value="auftrag.Besetzt" />
+
+            <label class="form-check-label">
+                Auftrag besetzt
+            </label>
+        </div>
+
+        <button type="submit" class="btn btn-success me-2">
+            Speichern
+        </button>
+
+        <button type="button"
+                class="btn btn-secondary"
+                @onclick="Zurueck">
+            Abbrechen
+        </button>
+
+    </EditForm>
+}
+
+@code {
+
+    [Parameter]
+    public int Id { get; set; }
+
+    private Auftrag? auftrag;
+
+    private List<Kunde> kundenListe = new();
+
+    protected override async Task OnInitializedAsync()
     {
+        kundenListe = await KundeService.GetAllAsync();
+        auftrag = await AuftragService.GetByIdAsync(Id);
     }
+
+    private async Task Speichern()
+    {
+        if (auftrag != null)
+        {
+            await AuftragService.UpdateAsync(auftrag);
+            Navigation.NavigateTo("/auftraege");
+        }
+    }
+
+    private void Zurueck()
+    {
+        Navigation.NavigateTo("/auftraege");
+    }
+
 }
