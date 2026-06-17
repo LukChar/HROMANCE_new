@@ -1,6 +1,70 @@
-﻿namespace HRomance.Components.Pages.Kunden
-{
-    public class Create
+﻿@page "/kunden/create"
+@rendermode InteractiveServer
+
+@using HRomance.Models
+@using HRomance.Services
+
+@inject KundeService KundeService
+@inject NavigationManager Navigation
+
+<PageTitle>Neuer Kunde</PageTitle>
+
+<h3>Neuen Kunden anlegen</h3>
+
+<EditForm Model="kunde" OnValidSubmit="Speichern">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label class="form-label">Firmenname</label>
+        <InputText class="form-control"
+                   @bind-Value="kunde.Firmenname" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Ansprechpartner</label>
+        <InputText class="form-control"
+                   @bind-Value="kunde.Ansprechpartner" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">E-Mail</label>
+        <InputText class="form-control"
+                   @bind-Value="kunde.Email" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Telefon</label>
+        <InputText class="form-control"
+                   @bind-Value="kunde.Telefon" />
+    </div>
+
+    <button type="submit" class="btn btn-success me-2">
+        Speichern
+    </button>
+
+    <button type="button"
+            class="btn btn-secondary"
+            @onclick="Zurueck">
+        Abbrechen
+    </button>
+
+</EditForm>
+
+@code {
+
+    private Kunde kunde = new();
+
+    private async Task Speichern()
     {
+        await KundeService.AddAsync(kunde);
+
+        Navigation.NavigateTo("/kunden");
     }
+
+    private void Zurueck()
+    {
+        Navigation.NavigateTo("/kunden");
+    }
+
 }

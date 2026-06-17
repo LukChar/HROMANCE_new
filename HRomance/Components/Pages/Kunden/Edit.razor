@@ -1,6 +1,87 @@
-﻿namespace HRomance.Components.Pages.Kunden
+﻿@page "/kunden/edit/{Id:int}"
+@rendermode InteractiveServer
+
+@using HRomance.Models
+@using HRomance.Services
+
+@inject KundeService KundeService
+@inject NavigationManager Navigation
+
+<PageTitle>Kunde bearbeiten</PageTitle>
+
+<h3>Kunde bearbeiten</h3>
+
+@if (kunde == null)
 {
-    public class Edit
+    <p>Lade Daten...</p>
+}
+else
+{
+    <EditForm Model="kunde" OnValidSubmit="Speichern">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label class="form-label">Firmenname</label>
+            <InputText class="form-control"
+                       @bind-Value="kunde.Firmenname" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Ansprechpartner</label>
+            <InputText class="form-control"
+                       @bind-Value="kunde.Ansprechpartner" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">E-Mail</label>
+            <InputText class="form-control"
+                       @bind-Value="kunde.Email" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Telefon</label>
+            <InputText class="form-control"
+                       @bind-Value="kunde.Telefon" />
+        </div>
+
+        <button type="submit" class="btn btn-success me-2">
+            Speichern
+        </button>
+
+        <button type="button"
+                class="btn btn-secondary"
+                @onclick="Zurueck">
+            Abbrechen
+        </button>
+
+    </EditForm>
+}
+
+@code {
+
+    [Parameter]
+    public int Id { get; set; }
+
+    private Kunde? kunde;
+
+    protected override async Task OnInitializedAsync()
     {
+        kunde = await KundeService.GetByIdAsync(Id);
     }
+
+    private async Task Speichern()
+    {
+        if (kunde != null)
+        {
+            await KundeService.UpdateAsync(kunde);
+            Navigation.NavigateTo("/kunden");
+        }
+    }
+
+    private void Zurueck()
+    {
+        Navigation.NavigateTo("/kunden");
+    }
+
 }

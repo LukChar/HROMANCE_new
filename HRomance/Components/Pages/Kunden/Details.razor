@@ -1,6 +1,69 @@
-﻿namespace HRomance.Components.Pages.Kunden
+﻿@page "/kunden/details/{Id:int}"
+@rendermode InteractiveServer
+
+@using HRomance.Models
+@using HRomance.Services
+
+@inject KundeService KundeService
+@inject NavigationManager Navigation
+
+<PageTitle>Kundendetails</PageTitle>
+
+<h3>Kundendetails</h3>
+
+@if (kunde == null)
 {
-    public class Details
+    <p>Lade Daten...</p>
+}
+else
+{
+    <div class="card">
+        <div class="card-body">
+
+            <div class="mb-3">
+                <strong>Firmenname:</strong><br />
+                @kunde.Firmenname
+            </div>
+
+            <div class="mb-3">
+                <strong>Ansprechpartner:</strong><br />
+                @kunde.Ansprechpartner
+            </div>
+
+            <div class="mb-3">
+                <strong>E-Mail:</strong><br />
+                @kunde.Email
+            </div>
+
+            <div class="mb-3">
+                <strong>Telefon:</strong><br />
+                @kunde.Telefon
+            </div>
+
+            <button class="btn btn-secondary"
+                    @onclick="Zurueck">
+                Zurück
+            </button>
+
+        </div>
+    </div>
+}
+
+@code {
+
+    [Parameter]
+    public int Id { get; set; }
+
+    private Kunde? kunde;
+
+    protected override async Task OnInitializedAsync()
     {
+        kunde = await KundeService.GetByIdAsync(Id);
     }
+
+    private void Zurueck()
+    {
+        Navigation.NavigateTo("/kunden");
+    }
+
 }
