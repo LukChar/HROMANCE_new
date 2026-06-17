@@ -1,5 +1,88 @@
-﻿<h3>Index</h3>
+﻿@page "/matching"
+@rendermode InteractiveServer
+
+@using HRomance.Models
+@using HRomance.Services
+
+@inject AuftragService AuftragService
+@inject MatchingService MatchingService
+
+<PageTitle>Matching</PageTitle>
+
+<h3>Matching</h3>
+
+<div class="mb-3">
+    <label class="form-label">Auftrag auswählen</label>
+
+    <InputSelect class="form-select" @bind-Value="ausgewaehlterAuftragId">
+
+        <option value="0">Bitte auswählen</option>
+
+        @foreach (var auftrag in auftraege)
+        {
+            <option value="@auftrag.Id">
+                @auftrag.Titel
+            </option>
+        }
+
+    </InputSelect>
+</div>
+
+<button class="btn btn-primary mb-3"
+        @onclick="MatchingStarten">
+    Matching starten
+</button>
+
+@if (passendeMitarbeiter.Any())
+{
+    <table class="table table-striped">
+
+        <thead>
+            <tr>
+                <th>Personalnummer</th>
+                <th>Vorname</th>
+                <th>Nachname</th>
+                <th>Qualifikation</th>
+            </tr>
+        </thead>
+
+        <tbody>
+
+            @foreach (var mitarbeiter in passendeMitarbeiter)
+            {
+                <tr>
+                    <td>@mitarbeiter.Personalnummer</td>
+                    <td>@mitarbeiter.Vorname</td>
+                    <td>@mitarbeiter.Nachname</td>
+                    <td>@mitarbeiter.Qualifikation</td>
+                </tr>
+            }
+
+        </tbody>
+
+    </table>
+}
 
 @code {
+
+    private List<Auftrag> auftraege = new();
+
+    private List<Mitarbeiter> passendeMitarbeiter = new();
+
+    private int ausgewaehlterAuftragId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        auftraege = await AuftragService.GetAllAsync();
+    }
+
+    private async Task MatchingStarten()
+    {
+        if (ausgewaehlterAuftragId == 0)
+            return;
+
+        passendeMitarbeiter =
+            await MatchingService.GetPassendeMitarbeiterAsync(ausgewaehlterAuftragId);
+    }
 
 }
