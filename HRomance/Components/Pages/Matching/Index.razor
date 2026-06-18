@@ -35,7 +35,7 @@
 
 @if (passendeMitarbeiter.Any())
 {
-    <table class="table table-striped">
+    <table class="table table-striped table-hover">
 
         <thead>
             <tr>
@@ -43,18 +43,22 @@
                 <th>Vorname</th>
                 <th>Nachname</th>
                 <th>Qualifikation</th>
+                <th>Punkte</th>
+                <th>Bewertung</th>
             </tr>
         </thead>
 
         <tbody>
 
-            @foreach (var mitarbeiter in passendeMitarbeiter)
+            @foreach (var ergebnis in passendeMitarbeiter)
             {
                 <tr>
-                    <td>@mitarbeiter.Personalnummer</td>
-                    <td>@mitarbeiter.Vorname</td>
-                    <td>@mitarbeiter.Nachname</td>
-                    <td>@mitarbeiter.Qualifikation</td>
+                    <td>@ergebnis.Mitarbeiter.Personalnummer</td>
+                    <td>@ergebnis.Mitarbeiter.Vorname</td>
+                    <td>@ergebnis.Mitarbeiter.Nachname</td>
+                    <td>@ergebnis.Mitarbeiter.Qualifikation</td>
+                    <td>@ergebnis.Punkte</td>
+                    <td>@ergebnis.Bewertung</td>
                 </tr>
             }
 
@@ -67,7 +71,7 @@
 
     private List<Auftrag> auftraege = new();
 
-    private List<Mitarbeiter> passendeMitarbeiter = new();
+    private List<MatchingErgebnis> passendeMitarbeiter = new();
 
     private int ausgewaehlterAuftragId;
 

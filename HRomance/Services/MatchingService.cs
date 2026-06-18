@@ -13,21 +13,51 @@ namespace HRomance.Services
             _context = context;
         }
 
-        public async Task<List<Mitarbeiter>> GetPassendeMitarbeiterAsync(int auftragId)
+        public async Task<List<MatchingErgebnis>> GetPassendeMitarbeiterAsync(int auftragId)
         {
             var auftrag = await _context.Auftraege
                 .FirstOrDefaultAsync(a => a.Id == auftragId);
 
             if (auftrag == null)
             {
-                return new List<Mitarbeiter>();
+                return new List<MatchingErgebnis>();
             }
 
-            return await _context.Mitarbeiter
-                .Where(m =>
-                    m.Verfuegbar &&
-                    m.Qualifikation == auftrag.BenoetigteQualifikation)
-                .ToListAsync();
+            var mitarbeiterListe = await _context.Mitarbeiter.ToListAsync();
+
+            var ergebnisse = new List<MatchingErgebnis>();
+
+            foreach (var mitarbeiter in mitarbeiterListe)
+            {
+                int punkte = 0;
+
+                // Verfügbarkeit
+                if (mitarbeiter.Verfuegbar)
+                    punkte += 50;
+
+                // Qualifikation
+                if (mitarbeiter.Qualifikation == auftrag.BenoetigteQualifikation)
+                    punkte += 50;
+
+                if (punkte > 0)
+                {
+                    ergebnisse.Add(new MatchingErgebnis
+                    {
+                        Mitarbeiter = mitarbeiter,
+                        Punkte = punkte,
+                        Bewertung = punkte switch
+                        {
+                            100 => "Sehr gut geeignet",
+                            50 => "Geeignet",
+                            _ => "Wenig geeignet"
+                        }
+                    });
+                }
+            }
+
+            return ergebnisse
+                .OrderByDescending(x => x.Punkte)
+                .ToList();
         }
     }
 }
