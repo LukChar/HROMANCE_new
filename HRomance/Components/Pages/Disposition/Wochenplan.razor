@@ -1,6 +1,83 @@
-﻿namespace HRomance.Components.Pages.Disposition
+﻿@page "/disposition/wochenplan"
+@rendermode InteractiveServer
+
+@using HRomance.Models
+@using HRomance.Services
+
+@inject AuftragService AuftragService
+
+<PageTitle>Wochenplan</PageTitle>
+
+<h3>Wochenplan</h3>
+
+@if (!auftraege.Any())
 {
-    public class Wochenplan
+    <div class="alert alert-info">
+        Für die nächsten 7 Tage sind keine Aufträge vorhanden.
+    </div>
+}
+else
+{
+    <table class="table table-striped table-hover">
+
+        <thead>
+            <tr>
+                <th>Titel</th>
+                <th>Kunde</th>
+                <th>Einsatzort</th>
+                <th>Qualifikation</th>
+                <th>Startdatum</th>
+                <th>Enddatum</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+
+        <tbody>
+
+            @foreach (var auftrag in auftraege)
+            {
+                <tr>
+                    <td>@auftrag.Titel</td>
+                    <td>@auftrag.Kunde?.Firmenname</td>
+                    <td>@auftrag.Einsatzort</td>
+                    <td>@auftrag.BenoetigteQualifikation</td>
+                    <td>@auftrag.Startdatum.ToShortDateString()</td>
+                    <td>@auftrag.Enddatum.ToShortDateString()</td>
+
+                    <td>
+                        @if (auftrag.Besetzt)
+                        {
+                            <span class="badge bg-success">Besetzt</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-warning text-dark">Offen</span>
+                        }
+                    </td>
+                </tr>
+            }
+
+        </tbody>
+
+    </table>
+}
+
+@code {
+
+    private List<Auftrag> auftraege = new();
+
+    protected override async Task OnInitializedAsync()
     {
+        var alleAuftraege = await AuftragService.GetAllAsync();
+
+        var heute = DateTime.Today;
+        var ende = heute.AddDays(7);
+
+        auftraege = alleAuftraege
+            .Where(a => a.Startdatum.Date >= heute &&
+                        a.Startdatum.Date <= ende)
+            .OrderBy(a => a.Startdatum)
+            .ToList();
     }
+
 }

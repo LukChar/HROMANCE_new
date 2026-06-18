@@ -1,0 +1,85 @@
+﻿@page "/disposition"
+@rendermode InteractiveServer
+
+@inject NavigationManager Navigation
+
+<PageTitle>Disposition</PageTitle>
+
+<h3>Disposition</h3>
+
+<div class="row">
+
+    <div class="col-md-4 mb-3">
+        <div class="card">
+            <div class="card-body">
+
+                <h5 class="card-title">Tagesplan</h5>
+
+                <p class="card-text">
+                    Zeigt alle Aufträge des heutigen Tages.
+                </p>
+
+                <button class="btn btn-primary" @onclick="Tagesplan">
+                    Öffnen
+                </button>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 mb-3">
+        <div class="card">
+            <div class="card-body">
+
+                <h5 class="card-title">Wochenplan</h5>
+
+                <p class="card-text">
+                    Zeigt alle Aufträge der nächsten 7 Tage.
+                </p>
+
+                <button class="btn btn-primary" @onclick="Wochenplan">
+                    Öffnen
+                </button>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 mb-3">
+        <div class="card">
+            <div class="card-body">
+
+                <h5 class="card-title">Monatsplan</h5>
+
+                <p class="card-text">
+                    Zeigt alle Aufträge des aktuellen Monats.
+                </p>
+
+                <button class="btn btn-primary" @onclick="Monatsplan">
+                    Öffnen
+                </button>
+
+            </div>
+        </div>
+    </div>
+
+</div>
+
+@code {
+
+    private void Tagesplan()
+    {
+        Navigation.NavigateTo("/disposition/tagesplan");
+    }
+
+    private void Wochenplan()
+    {
+        Navigation.NavigateTo("/disposition/wochenplan");
+    }
+
+    private void Monatsplan()
+    {
+        Navigation.NavigateTo("/disposition/monatsplan");
+    }
+
+}
