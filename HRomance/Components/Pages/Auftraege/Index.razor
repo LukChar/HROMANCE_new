@@ -55,22 +55,20 @@ else
                 <tr>
 
                     <td>
-
-                        <button class="btn btn-info btn-sm me-2"
+                        <button class="btn btn-details btn-sm me-2"
                                 @onclick="() => Details(auftrag.Id)">
                             Details
                         </button>
 
-                        <button class="btn btn-warning btn-sm me-2"
+                        <button class="btn btn-bearbeiten btn-sm me-2"
                                 @onclick="() => Bearbeiten(auftrag.Id)">
                             Bearbeiten
                         </button>
 
-                        <button class="btn btn-danger btn-sm"
+                        <button class="btn btn-loeschen btn-sm"
                                 @onclick="() => Loeschen(auftrag.Id)">
                             Löschen
                         </button>
-
                     </td>
 
                     <td>@auftrag.Titel</td>

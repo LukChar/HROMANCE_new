@@ -58,3 +58,33 @@ h1:focus {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+
+.btn-details {
+    background-color: #4f46e5;
+    color: white;
+    border: none;
+}
+
+    .btn-details:hover {
+        background-color: #4338ca;
+    }
+
+.btn-edit {
+    background-color: #f59e0b;
+    color: white;
+    border: none;
+}
+
+    .btn-edit:hover {
+        background-color: #d97706;
+    }
+
+.btn-delete {
+    background-color: #dc2626;
+    color: white;
+    border: none;
+}
+
+    .btn-delete:hover {
+        background-color: #b91c1c;
+    }
