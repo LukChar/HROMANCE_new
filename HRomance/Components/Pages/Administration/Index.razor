@@ -1,4 +1,8 @@
-﻿<h3>Index</h3>
+﻿@attribute [Authorize(Roles = "Admin")]
+@using Microsoft.AspNetCore.Authorization
+@page "/administration"
+
+<h3>Index Administration</h3>
 
 @code {
 
