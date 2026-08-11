@@ -163,7 +163,7 @@
                                          @onclick:stopPropagation="true"
                                          @ondblclick:stopPropagation="true">
                                         <strong>@MitarbeiterName(arbeitszeit.Mitarbeiter)</strong>
-                                        <span>· @arbeitszeit.Beginn.ToString("HH:mm") - @arbeitszeit.Ende.ToString("HH:mm")</span>
+                                        <span>· @ArbeitszeitService.ZeitraumAnzeigen(arbeitszeit.Beginn, arbeitszeit.Ende)</span>
                                     </div>
                                 }
                             }
@@ -235,7 +235,7 @@
                         {
                             <div class="day-entry">
                                 <strong>@MitarbeiterName(arbeitszeit.Mitarbeiter)</strong>
-                                <span>@arbeitszeit.Beginn.ToString("HH:mm") - @arbeitszeit.Ende.ToString("HH:mm")</span>
+                                <span>@ArbeitszeitService.ZeitraumAnzeigen(arbeitszeit.Beginn, arbeitszeit.Ende)</span>
                                 <span>Pause: @arbeitszeit.PauseMinuten Minuten</span>
                                 <span>Gearbeitet: @StundenAnzeigen(ArbeitszeitService.BerechneArbeitsstunden(arbeitszeit)) Std.</span>
                                 @if (!string.IsNullOrWhiteSpace(arbeitszeit.Notiz))
@@ -573,7 +573,7 @@
                     {
                         <button type="button" class="day-popup-entry work-entry" @onclick="() => ArbeitszeitAusTageslisteOeffnen(arbeitszeit)">
                             <strong>Arbeitszeit: @MitarbeiterName(arbeitszeit.Mitarbeiter)</strong>
-                            <span>@arbeitszeit.Beginn.ToString("HH:mm") - @arbeitszeit.Ende.ToString("HH:mm")</span>
+                            <span>@ArbeitszeitService.ZeitraumAnzeigen(arbeitszeit.Beginn, arbeitszeit.Ende)</span>
                         </button>
                     }
 
@@ -605,8 +605,8 @@
                 <div class="popup-details">
                     <strong>@MitarbeiterName(popupArbeitszeit.Mitarbeiter)</strong>
                     <span>Datum: @popupArbeitszeit.Datum.ToString("dd.MM.yyyy")</span>
-                    <span>Beginn: @popupArbeitszeit.Beginn.ToString("HH:mm")</span>
-                    <span>Ende: @popupArbeitszeit.Ende.ToString("HH:mm")</span>
+                    <span>Beginn: @ArbeitszeitService.ZeitAnzeigen(popupArbeitszeit.Beginn)</span>
+                    <span>Ende: @ArbeitszeitService.ZeitAnzeigen(popupArbeitszeit.Ende)</span>
                     <span>Pause: @popupArbeitszeit.PauseMinuten Minuten</span>
                     <span>Gearbeitet: @StundenAnzeigen(ArbeitszeitService.BerechneArbeitsstunden(popupArbeitszeit)) Std.</span>
                     @if (!string.IsNullOrWhiteSpace(popupArbeitszeit.Notiz))

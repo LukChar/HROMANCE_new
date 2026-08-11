@@ -9,6 +9,38 @@ namespace HRomance.Tests;
 
 public class ArbeitszeitServiceTests
 {
+    [Theory]
+    [InlineData(8, 0, "08:00")]
+    [InlineData(13, 30, "13:30")]
+    [InlineData(16, 0, "16:00")]
+    public void UhrzeitWirdImVierundzwanzigStundenFormatAngezeigt(
+        int stunde,
+        int minute,
+        string erwartet)
+    {
+        using var testdatenbank = new Testdatenbank();
+
+        var anzeige = testdatenbank.Service.ZeitAnzeigen(new TimeOnly(stunde, minute));
+
+        Assert.Equal(erwartet, anzeige);
+        Assert.DoesNotContain("AM", anzeige);
+        Assert.DoesNotContain("PM", anzeige);
+    }
+
+    [Fact]
+    public void ZeitraumWirdEinheitlichImVierundzwanzigStundenFormatAngezeigt()
+    {
+        using var testdatenbank = new Testdatenbank();
+
+        var anzeige = testdatenbank.Service.ZeitraumAnzeigen(
+            new TimeOnly(8, 0),
+            new TimeOnly(16, 0));
+
+        Assert.Equal("08:00 - 16:00", anzeige);
+        Assert.DoesNotContain("AM", anzeige);
+        Assert.DoesNotContain("PM", anzeige);
+    }
+
     [Fact]
     public void AchtBisSechzehnDreissigMitPauseErgibtAchtStunden()
     {

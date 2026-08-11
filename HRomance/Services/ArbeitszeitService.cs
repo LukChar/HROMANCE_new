@@ -112,6 +112,16 @@ public class ArbeitszeitService
         return dauer.TotalHours - arbeitszeit.PauseMinuten / 60.0;
     }
 
+    public string ZeitAnzeigen(TimeOnly zeit)
+    {
+        return zeit.ToString("HH:mm");
+    }
+
+    public string ZeitraumAnzeigen(TimeOnly beginn, TimeOnly ende)
+    {
+        return ZeitAnzeigen(beginn) + " - " + ZeitAnzeigen(ende);
+    }
+
     public double BerechneMonatsstunden(
         List<Arbeitszeit> arbeitszeiten,
         int mitarbeiterId,
