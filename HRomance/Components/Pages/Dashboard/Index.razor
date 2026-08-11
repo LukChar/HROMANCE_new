@@ -19,9 +19,22 @@
         <p>Übersicht über Mitarbeiter, Aufträge, Anträge und Arbeitszeiten</p>
     </div>
 
+    <div class="view-switch">
+        <button type="button"
+                class="@AnsichtsButtonKlasse(false)"
+                @onclick="() => MitarbeiterAnsichtSetzen(false)">
+            Manager-Ansicht
+        </button>
+        <button type="button"
+                class="@AnsichtsButtonKlasse(true)"
+                @onclick="() => MitarbeiterAnsichtSetzen(true)">
+            Mitarbeiter-Ansicht
+        </button>
+    </div>
+
     <section class="dashboard-section working-time-overview">
         <div class="section-header">
-            <h2>Arbeitszeit</h2>
+            <h2>@(mitarbeiterAnsicht ? "Meine Arbeitszeit" : "Arbeitszeit")</h2>
         </div>
 
         <div class="working-time-content">
@@ -65,7 +78,9 @@
         </div>
     </section>
 
-    <div class="summary-grid">
+    @if (!mitarbeiterAnsicht)
+    {
+        <div class="summary-grid">
         <div class="summary-card">
             <span>Mitarbeiter</span>
             <strong>@mitarbeiter.Count gesamt</strong>
@@ -86,9 +101,9 @@
             <strong>@offeneAntraege.Count</strong>
             <small>Noch nicht bearbeitet</small>
         </div>
-    </div>
+        </div>
 
-    <div class="dashboard-grid">
+        <div class="dashboard-grid">
         <section class="dashboard-section today-orders">
             <div class="section-header">
                 <h2>Heutige Einsätze</h2>
@@ -166,7 +181,69 @@
             }
         </section>
 
-    </div>
+        </div>
+    }
+    else
+    {
+        <div class="personal-grid">
+            <section class="dashboard-section">
+                <div class="section-header">
+                    <h2>Meine nächsten Einsätze</h2>
+                </div>
+
+                @if (ausgewaehlterMitarbeiterId == 0)
+                {
+                    <p class="empty-message">Bitte einen Mitarbeiter auswählen.</p>
+                }
+                else if (PersoenlicheEinsaetze().Count == 0)
+                {
+                    <p class="empty-message">In den nächsten fünf Arbeitstagen sind keine Einsätze geplant.</p>
+                }
+                else
+                {
+                    <div class="entry-list">
+                        @foreach (var auftrag in PersoenlicheEinsaetze())
+                        {
+                            <button type="button" class="dashboard-entry order-entry" @onclick="() => AuftragOeffnen(auftrag)">
+                                <strong>@auftrag.Titel</strong>
+                                <span>@(auftrag.Kunde?.Firmenname ?? "Kein Kunde")</span>
+                                <span>@auftrag.Einsatzort</span>
+                                <small>@auftrag.Startdatum.ToString("dd.MM.yyyy") - @auftrag.Enddatum.ToString("dd.MM.yyyy")</small>
+                            </button>
+                        }
+                    </div>
+                }
+            </section>
+
+            <section class="dashboard-section">
+                <div class="section-header">
+                    <h2>Meine Abwesenheiten / Anträge</h2>
+                </div>
+
+                @if (ausgewaehlterMitarbeiterId == 0)
+                {
+                    <p class="empty-message">Bitte einen Mitarbeiter auswählen.</p>
+                }
+                else if (PersoenlicheAbwesenheiten().Count == 0)
+                {
+                    <p class="empty-message">Es sind keine Abwesenheiten oder Anträge vorhanden.</p>
+                }
+                else
+                {
+                    <div class="entry-list">
+                        @foreach (var abwesenheit in PersoenlicheAbwesenheiten())
+                        {
+                            <div class="dashboard-entry">
+                                <strong>@abwesenheit.Typ</strong>
+                                <span>@abwesenheit.Von.ToString("dd.MM.yyyy") - @abwesenheit.Bis.ToString("dd.MM.yyyy")</span>
+                                <small>@abwesenheit.Status</small>
+                            </div>
+                        }
+                    </div>
+                }
+            </section>
+        </div>
+    }
 </div>
 
 @if (ausgewaehlterAuftrag != null)
@@ -189,6 +266,7 @@
     private int offeneAuftraege;
     private int besetzteAuftraege;
     private int ausgewaehlterMitarbeiterId;
+    private bool mitarbeiterAnsicht;
     private Auftrag? ausgewaehlterAuftrag;
 
     protected override async Task OnInitializedAsync()
@@ -244,6 +322,52 @@
     private void MitarbeiterGeaendert(ChangeEventArgs e)
     {
         int.TryParse(e.Value?.ToString(), out ausgewaehlterMitarbeiterId);
+    }
+
+    private void MitarbeiterAnsichtSetzen(bool istMitarbeiterAnsicht)
+    {
+        mitarbeiterAnsicht = istMitarbeiterAnsicht;
+    }
+
+    private string AnsichtsButtonKlasse(bool istMitarbeiterAnsicht)
+    {
+        if (mitarbeiterAnsicht == istMitarbeiterAnsicht)
+        {
+            return "view-button active-view";
+        }
+
+        return "view-button";
+    }
+
+    private List<Abwesenheit> PersoenlicheAbwesenheiten()
+    {
+        var ergebnis = new List<Abwesenheit>();
+
+        foreach (var abwesenheit in abwesenheiten)
+        {
+            if (AbwesenheitService.PasstZuMitarbeiter(abwesenheit, ausgewaehlterMitarbeiterId))
+            {
+                ergebnis.Add(abwesenheit);
+            }
+        }
+
+        return ergebnis;
+    }
+
+    private List<Auftrag> PersoenlicheEinsaetze()
+    {
+        var ergebnis = new List<Auftrag>();
+
+        foreach (var auftrag in auftraege)
+        {
+            if (AuftragService.PasstZuMitarbeiter(auftrag, ausgewaehlterMitarbeiterId)
+                && AuftragService.IstInNaechstenFuenfArbeitstagen(auftrag, DateTime.Today))
+            {
+                ergebnis.Add(auftrag);
+            }
+        }
+
+        return ergebnis;
     }
 
     private double MonatsIst()

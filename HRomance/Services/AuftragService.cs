@@ -249,6 +249,40 @@ namespace HRomance.Services
                 && auftrag.Enddatum.Date >= datum.Date;
         }
 
+        public List<DateTime> NaechsteArbeitstage(DateTime startdatum, int anzahl)
+        {
+            var arbeitstage = new List<DateTime>();
+            var tag = startdatum.Date;
+
+            while (arbeitstage.Count < anzahl)
+            {
+                if (tag.DayOfWeek != DayOfWeek.Saturday
+                    && tag.DayOfWeek != DayOfWeek.Sunday)
+                {
+                    arbeitstage.Add(tag);
+                }
+
+                tag = tag.AddDays(1);
+            }
+
+            return arbeitstage;
+        }
+
+        public bool IstInNaechstenFuenfArbeitstagen(Auftrag auftrag, DateTime heute)
+        {
+            var arbeitstage = NaechsteArbeitstage(heute, 5);
+
+            foreach (var tag in arbeitstage)
+            {
+                if (IstEinsatzAmTag(auftrag, tag))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         public List<Mitarbeiter> MitarbeiterSortieren(
             Auftrag auftrag,
             List<Mitarbeiter> mitarbeiter,

@@ -144,6 +144,111 @@ public class DashboardTests
         Assert.Equal(11.5, stunden);
     }
 
+    [Fact]
+    public void MitarbeiterSiehtNurEigeneAbwesenheiten()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var eigeneAbwesenheit = NeueAbwesenheit("Genehmigt");
+        eigeneAbwesenheit.MitarbeiterId = 1;
+
+        Assert.True(testdatenbank.AbwesenheitService.PasstZuMitarbeiter(eigeneAbwesenheit, 1));
+    }
+
+    [Fact]
+    public void MitarbeiterSiehtKeineFremdenAbwesenheiten()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var fremdeAbwesenheit = NeueAbwesenheit("Genehmigt");
+        fremdeAbwesenheit.MitarbeiterId = 2;
+
+        Assert.False(testdatenbank.AbwesenheitService.PasstZuMitarbeiter(fremdeAbwesenheit, 1));
+    }
+
+    [Fact]
+    public void MitarbeiterSiehtZugewiesenenAuftrag()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var auftrag = NeuerAuftrag();
+        auftrag.Mitarbeiter.Add(new Mitarbeiter { Id = 1 });
+
+        Assert.True(testdatenbank.AuftragService.PasstZuMitarbeiter(auftrag, 1));
+    }
+
+    [Fact]
+    public void MitarbeiterSiehtNichtZugewiesenenAuftragNicht()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var auftrag = NeuerAuftrag();
+        auftrag.Mitarbeiter.Add(new Mitarbeiter { Id = 2 });
+
+        Assert.False(testdatenbank.AuftragService.PasstZuMitarbeiter(auftrag, 1));
+    }
+
+    [Fact]
+    public void FuenfArbeitstageUeberspringenSamstagUndSonntag()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var start = new DateTime(2026, 8, 13);
+
+        var arbeitstage = testdatenbank.AuftragService.NaechsteArbeitstage(start, 5);
+
+        Assert.Equal(new DateTime(2026, 8, 13), arbeitstage[0]);
+        Assert.Equal(new DateTime(2026, 8, 14), arbeitstage[1]);
+        Assert.Equal(new DateTime(2026, 8, 17), arbeitstage[2]);
+        Assert.Equal(new DateTime(2026, 8, 18), arbeitstage[3]);
+        Assert.Equal(new DateTime(2026, 8, 19), arbeitstage[4]);
+    }
+
+    [Fact]
+    public void AuftragInnerhalbDerNaechstenFuenfArbeitstageWirdAngezeigt()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var auftrag = NeuerAuftrag(17, 17);
+
+        var sichtbar = testdatenbank.AuftragService.IstInNaechstenFuenfArbeitstagen(
+            auftrag, new DateTime(2026, 8, 13));
+
+        Assert.True(sichtbar);
+    }
+
+    [Fact]
+    public void AuftragAusserhalbDerNaechstenFuenfArbeitstageWirdNichtAngezeigt()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var auftrag = NeuerAuftrag(20, 20);
+
+        var sichtbar = testdatenbank.AuftragService.IstInNaechstenFuenfArbeitstagen(
+            auftrag, new DateTime(2026, 8, 13));
+
+        Assert.False(sichtbar);
+    }
+
+    [Fact]
+    public void ManagerKennzahlenVerwendenWeiterhinGesamtdaten()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var mitarbeiter = new List<Mitarbeiter> { new(), new(), new() };
+        var auftraege = new List<Auftrag> { NeuerAuftrag(), BesetzterAuftrag() };
+        var offeneAuftraege = 0;
+        var besetzteAuftraege = 0;
+
+        foreach (var auftrag in auftraege)
+        {
+            if (testdatenbank.AuftragService.IstBesetzt(auftrag))
+            {
+                besetzteAuftraege++;
+            }
+            else
+            {
+                offeneAuftraege++;
+            }
+        }
+
+        Assert.Equal(3, mitarbeiter.Count);
+        Assert.Equal(1, offeneAuftraege);
+        Assert.Equal(1, besetzteAuftraege);
+    }
+
     private static Auftrag NeuerAuftrag(int startTag = 10, int endeTag = 12)
     {
         return new Auftrag
