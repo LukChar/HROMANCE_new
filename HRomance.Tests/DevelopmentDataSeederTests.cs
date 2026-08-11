@@ -1,4 +1,6 @@
 using HRomance.Data;
+using HRomance.Models;
+using HRomance.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -60,18 +62,68 @@ public class DevelopmentDataSeederTests
         Assert.True(await testdatenbank.UserManager.CheckPasswordAsync(user, DevelopmentDataSeeder.DemoPasswort));
     }
 
-    [Fact]
-    public async Task MitarbeiterTestbenutzerIstMitarbeiterZugeordnet()
+    [Theory]
+    [InlineData("fritz.schreiner@hromance.test", "P001", "Fritz", "Schreiner")]
+    [InlineData("hans.elektriker@hromance.test", "P002", "Hans", "Berger")]
+    [InlineData("max.muster@hromance.test", "P003", "Max", "Leitner")]
+    [InlineData("anna.gruber@hromance.test", "P004", "Anna", "Gruber")]
+    [InlineData("lisa.moser@hromance.test", "P005", "Lisa", "Moser")]
+    [InlineData("admin@hromance.test", "P006", "Martin", "Admin")]
+    [InlineData("disponent@hromance.test", "P007", "Daniel", "Disponent")]
+    public async Task DemoBenutzerIstRichtigemMitarbeiterZugeordnet(
+        string email,
+        string personalnummer,
+        string vorname,
+        string nachname)
     {
         await using var testdatenbank = await Testdatenbank.Erstellen();
         await testdatenbank.SeedAusfuehren();
 
         var user = await testdatenbank.Context.Users
             .Include(u => u.Mitarbeiter)
-            .FirstAsync(u => u.Email == "fritz.schreiner@hromance.test");
+            .FirstAsync(u => u.Email == email);
 
         Assert.NotNull(user.Mitarbeiter);
-        Assert.Equal("P001", user.Mitarbeiter.Personalnummer);
+        Assert.Equal(personalnummer, user.Mitarbeiter.Personalnummer);
+        Assert.Equal(vorname, user.Mitarbeiter.Vorname);
+        Assert.Equal(nachname, user.Mitarbeiter.Nachname);
+    }
+
+    [Fact]
+    public async Task SeedKorrigiertBestehendenFalschenDemoMitarbeiter()
+    {
+        await using var testdatenbank = await Testdatenbank.Erstellen();
+        testdatenbank.Context.Mitarbeiter.Add(new Mitarbeiter
+        {
+            Personalnummer = "P001",
+            Vorname = "Max",
+            Nachname = "Muster2"
+        });
+        await testdatenbank.Context.SaveChangesAsync();
+
+        await testdatenbank.SeedAusfuehren();
+
+        var fritz = await testdatenbank.Context.Mitarbeiter
+            .FirstAsync(m => m.Personalnummer == "P001");
+        Assert.Equal("Fritz", fritz.Vorname);
+        Assert.Equal("Schreiner", fritz.Nachname);
+        Assert.NotEqual("Max Muster2", fritz.Vorname + " " + fritz.Nachname);
+    }
+
+    [Fact]
+    public async Task FritzLaedtNurSeinenZugewiesenenAuftrag()
+    {
+        await using var testdatenbank = await Testdatenbank.Erstellen();
+        await testdatenbank.SeedAusfuehren();
+
+        var fritz = await testdatenbank.Context.Mitarbeiter
+            .FirstAsync(m => m.Personalnummer == "P001");
+        var auftragService = new AuftragService(testdatenbank.Context);
+
+        var auftraege = await auftragService.GetByMitarbeiterAsync(fritz.Id);
+
+        var auftrag = Assert.Single(auftraege);
+        Assert.Equal("Möbelmontage Empfang", auftrag.Titel);
     }
 
     [Fact]
@@ -82,7 +134,7 @@ public class DevelopmentDataSeederTests
         await testdatenbank.SeedAusfuehren();
         await testdatenbank.SeedAusfuehren();
 
-        Assert.Equal(5, await testdatenbank.Context.Mitarbeiter.CountAsync());
+        Assert.Equal(7, await testdatenbank.Context.Mitarbeiter.CountAsync());
     }
 
     [Fact]

@@ -2,10 +2,13 @@
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 
+@using HRomance.Data
 @using HRomance.Models
 @using HRomance.Services
+@using Microsoft.AspNetCore.Identity
 
 @inject AbwesenheitService AbwesenheitService
+@inject UserManager<ApplicationUser> UserManager
 
 <PageTitle>Anträge</PageTitle>
 
@@ -158,15 +161,38 @@
     private string sortierung = "Neueste";
     private Abwesenheit? bestaetigungsAntrag;
     private string neuerStatus = string.Empty;
+    private int mitarbeiterId;
+    private bool istManager;
 
     protected override async Task OnInitializedAsync()
     {
+        var authenticationState = await AuthenticationStateTask;
+        var user = await UserManager.GetUserAsync(authenticationState.User);
+        mitarbeiterId = user?.MitarbeiterId ?? 0;
+        istManager = authenticationState.User.IsInRole("Admin")
+            || authenticationState.User.IsInRole("Disponent");
+
         await AntraegeLaden();
     }
 
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
+
     private async Task AntraegeLaden()
     {
-        antraege = await AbwesenheitService.GetAllAsync();
+        if (istManager)
+        {
+            antraege = await AbwesenheitService.GetAllAsync();
+        }
+        else if (mitarbeiterId != 0)
+        {
+            antraege = await AbwesenheitService.GetByMitarbeiterAsync(mitarbeiterId);
+        }
+        else
+        {
+            antraege = new List<Abwesenheit>();
+        }
+
         anzahlOffen = 0;
         anzahlGenehmigt = 0;
         anzahlAbgelehnt = 0;
@@ -220,6 +246,11 @@
 
     private void BestaetigungOeffnen(Abwesenheit antrag, string status)
     {
+        if (!istManager)
+        {
+            return;
+        }
+
         bestaetigungsAntrag = antrag;
         neuerStatus = status;
     }
@@ -232,7 +263,7 @@
 
     private async Task StatusBestaetigen()
     {
-        if (bestaetigungsAntrag == null)
+        if (!istManager || bestaetigungsAntrag == null)
         {
             return;
         }

@@ -362,13 +362,7 @@ public class ArbeitszeitService
         double wochenarbeitszeit,
         DateTime aktuellesDatum)
     {
-        var alleArbeitszeiten = await GetByMitarbeiterAsync(mitarbeiterId);
-        var alleAbwesenheiten = await _context.Abwesenheiten
-            .Where(a => a.MitarbeiterId == mitarbeiterId)
-            .ToListAsync();
-        var auswertung = BerechneMonatsauswertung(
-            alleArbeitszeiten,
-            alleAbwesenheiten,
+        var auswertung = await GetMonatsauswertungAsync(
             mitarbeiterId,
             jahr,
             monat,
@@ -376,5 +370,28 @@ public class ArbeitszeitService
             aktuellesDatum);
 
         return (auswertung.Arbeitszeit, auswertung.Soll, auswertung.Saldo);
+    }
+
+    public async Task<(double Arbeitszeit, double Soll, int Abwesenheitstage, double Saldo)>
+        GetMonatsauswertungAsync(
+            int mitarbeiterId,
+            int jahr,
+            int monat,
+            double wochenarbeitszeit,
+            DateTime aktuellesDatum)
+    {
+        var alleArbeitszeiten = await GetByMitarbeiterAsync(mitarbeiterId);
+        var alleAbwesenheiten = await _context.Abwesenheiten
+            .Where(a => a.MitarbeiterId == mitarbeiterId)
+            .ToListAsync();
+
+        return BerechneMonatsauswertung(
+            alleArbeitszeiten,
+            alleAbwesenheiten,
+            mitarbeiterId,
+            jahr,
+            monat,
+            wochenarbeitszeit,
+            aktuellesDatum);
     }
 }

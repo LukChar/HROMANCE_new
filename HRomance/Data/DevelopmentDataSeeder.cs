@@ -45,6 +45,22 @@ public static class DevelopmentDataSeeder
             "anna.gruber@hromance.test", "+43 000 100004", 30, [elektriker]);
         var lisa = await MitarbeiterAnlegen(context, "P005", "Lisa", "Moser",
             "lisa.moser@hromance.test", "+43 000 100005", 38.5, [softwareentwickler]);
+        var martin = await MitarbeiterAnlegen(context, "P006", "Martin", "Admin",
+            "admin@hromance.test", "+43 000 100006", 40, []);
+        var daniel = await MitarbeiterAnlegen(context, "P007", "Daniel", "Disponent",
+            "disponent@hromance.test", "+43 000 100007", 40, []);
+
+        List<Mitarbeiter> demoMitarbeiter = [fritz, hans, max, anna, lisa, martin, daniel];
+
+        foreach (var demoMitarbeiterEintrag in demoMitarbeiter)
+        {
+            await context.Entry(demoMitarbeiterEintrag)
+                .Collection(m => m.Auftraege)
+                .LoadAsync();
+            demoMitarbeiterEintrag.Auftraege.Clear();
+        }
+
+        await context.SaveChangesAsync();
 
         var alpenTechnik = await KundeAnlegen(context, "Alpen Technik GmbH", "Mara Beispiel",
             "kontakt@alpentechnik.example.test", "+43 000 200001");
@@ -76,7 +92,7 @@ public static class DevelopmentDataSeeder
             heute, heute, demoIndustrie, [softwareentwickler], [lisa]);
         await AuftragAnlegen(context, "Möbelmontage Empfang",
             "Montage neuer Empfangsmöbel beim Kunden.", "Krems",
-            heute.AddDays(12), heute.AddDays(12), donauService, [tischler], []);
+            heute.AddDays(12), heute.AddDays(12), donauService, [tischler], [fritz]);
         await AuftragAnlegen(context, "Maschinenprüfung",
             "Technische Kontrolle und Dokumentation einer Bestandsmaschine.", "St. Pölten",
             heute.AddDays(14), heute.AddDays(16), alpenTechnik, [elektriker, mechaniker], []);
@@ -94,8 +110,8 @@ public static class DevelopmentDataSeeder
         await AbwesenheitAnlegen(context, max, heute.AddDays(18), heute.AddDays(18), "Urlaub", "Abgelehnt", "Terminkonflikt");
         await AbwesenheitAnlegen(context, lisa, heute.AddDays(6), heute.AddDays(6), "Zeitausgleich", "Offen", "Überstundenabbau");
 
-        await BenutzerAnlegen(userManager, "admin@hromance.test", null, "Admin");
-        await BenutzerAnlegen(userManager, "disponent@hromance.test", null, "Disponent");
+        await BenutzerAnlegen(userManager, "admin@hromance.test", martin, "Admin");
+        await BenutzerAnlegen(userManager, "disponent@hromance.test", daniel, "Disponent");
         await BenutzerAnlegen(userManager, "fritz.schreiner@hromance.test", fritz, null);
         await BenutzerAnlegen(userManager, "hans.elektriker@hromance.test", hans, null);
         await BenutzerAnlegen(userManager, "max.muster@hromance.test", max, null);
@@ -147,8 +163,24 @@ public static class DevelopmentDataSeeder
             };
 
             context.Mitarbeiter.Add(mitarbeiter);
-            await context.SaveChangesAsync();
         }
+
+        mitarbeiter.Personalnummer = personalnummer;
+        mitarbeiter.Vorname = vorname;
+        mitarbeiter.Nachname = nachname;
+        mitarbeiter.Email = email;
+        mitarbeiter.Telefon = telefon;
+        mitarbeiter.Wochenarbeitszeit = wochenarbeitszeit;
+        mitarbeiter.SollStundenProTag = wochenarbeitszeit / 5;
+        mitarbeiter.Verfuegbar = true;
+        mitarbeiter.Qualifikationen.Clear();
+
+        foreach (var qualifikation in qualifikationen)
+        {
+            mitarbeiter.Qualifikationen.Add(qualifikation);
+        }
+
+        await context.SaveChangesAsync();
 
         return mitarbeiter;
     }
@@ -190,23 +222,36 @@ public static class DevelopmentDataSeeder
         List<Qualifikation> qualifikationen,
         List<Mitarbeiter> mitarbeiter)
     {
-        if (await context.Auftraege.AnyAsync(a => a.Titel == titel))
+        var auftrag = await context.Auftraege
+            .Include(a => a.Qualifikationen)
+            .Include(a => a.Mitarbeiter)
+            .FirstOrDefaultAsync(a => a.Titel == titel);
+
+        if (auftrag == null)
         {
-            return;
+            auftrag = new Auftrag { Titel = titel };
+            context.Auftraege.Add(auftrag);
         }
 
-        context.Auftraege.Add(new Auftrag
+        auftrag.Titel = titel;
+        auftrag.Beschreibung = beschreibung;
+        auftrag.Einsatzort = einsatzort;
+        auftrag.Startdatum = startdatum;
+        auftrag.Enddatum = enddatum;
+        auftrag.KundeId = kunde.Id;
+        auftrag.Besetzt = mitarbeiter.Count > 0;
+        auftrag.Qualifikationen.Clear();
+        auftrag.Mitarbeiter.Clear();
+
+        foreach (var qualifikation in qualifikationen)
         {
-            Titel = titel,
-            Beschreibung = beschreibung,
-            Einsatzort = einsatzort,
-            Startdatum = startdatum,
-            Enddatum = enddatum,
-            KundeId = kunde.Id,
-            Besetzt = mitarbeiter.Count > 0,
-            Qualifikationen = qualifikationen,
-            Mitarbeiter = mitarbeiter
-        });
+            auftrag.Qualifikationen.Add(qualifikation);
+        }
+
+        foreach (var person in mitarbeiter)
+        {
+            auftrag.Mitarbeiter.Add(person);
+        }
 
         await context.SaveChangesAsync();
     }

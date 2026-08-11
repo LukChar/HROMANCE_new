@@ -627,6 +627,30 @@ public class ArbeitszeitServiceTests
     }
 
     [Fact]
+    public async Task MitarbeiterdetailsVerwendenDieselbeMonatsauswertungWieDashboard()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var mitarbeiter = await testdatenbank.MitarbeiterHinzufuegen();
+        await testdatenbank.ArbeitszeitHinzufuegen(mitarbeiter.Id, 3, 8, 0, 16, 0, 0);
+        await testdatenbank.AbwesenheitHinzufuegen(mitarbeiter.Id, 4, "Urlaub", "Genehmigt");
+        var heute = new DateTime(2026, 8, 4);
+
+        var detailsAuswertung = await testdatenbank.Service.GetMonatsauswertungAsync(
+            mitarbeiter.Id, 2026, 8, mitarbeiter.Wochenarbeitszeit, heute);
+        var dashboardAuswertung = testdatenbank.Service.BerechneMonatsauswertung(
+            [ArbeitszeitAmTag(mitarbeiter.Id, 3, 8)],
+            [AbwesenheitVonBis(mitarbeiter.Id, 4, 4, "Urlaub", "Genehmigt")],
+            mitarbeiter.Id,
+            2026,
+            8,
+            mitarbeiter.Wochenarbeitszeit,
+            heute);
+
+        Assert.Equal(dashboardAuswertung, detailsAuswertung);
+        Assert.Equal(1, detailsAuswertung.Abwesenheitstage);
+    }
+
+    [Fact]
     public async Task WochenarbeitszeitWirdGespeichertUndGeladen()
     {
         using var testdatenbank = new Testdatenbank();
@@ -747,6 +771,24 @@ public class ArbeitszeitServiceTests
             arbeitszeit.MitarbeiterId = mitarbeiterId;
             arbeitszeit.Datum = new DateTime(2026, 8, tag);
             await Service.AddAsync(arbeitszeit);
+        }
+
+        public async Task AbwesenheitHinzufuegen(
+            int mitarbeiterId,
+            int tag,
+            string typ,
+            string status)
+        {
+            context.Abwesenheiten.Add(new Abwesenheit
+            {
+                MitarbeiterId = mitarbeiterId,
+                Von = new DateTime(2026, 8, tag),
+                Bis = new DateTime(2026, 8, tag),
+                Typ = typ,
+                Status = status
+            });
+
+            await context.SaveChangesAsync();
         }
 
         public void Dispose()

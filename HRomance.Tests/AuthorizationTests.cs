@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using HRomance.Components.Account;
 using Microsoft.AspNetCore.Authorization;
 using Xunit;
 
@@ -6,6 +7,20 @@ namespace HRomance.Tests;
 
 public class AuthorizationTests
 {
+    [Theory]
+    [InlineData("Admin")]
+    [InlineData("Disponent")]
+    [InlineData("Mitarbeiter")]
+    public void ErfolgreicherLoginFuehrtZumDashboard(string rolle)
+    {
+        var benutzer = rolle == "Mitarbeiter"
+            ? AngemeldeterMitarbeiter()
+            : BenutzerMitRolle(rolle);
+
+        Assert.True(benutzer.Identity?.IsAuthenticated);
+        Assert.Equal("dashboard", IdentityRedirectManager.StandardLoginZiel);
+    }
+
     [Fact]
     public void ManagerrollenWerdenErkannt()
     {
@@ -27,6 +42,7 @@ public class AuthorizationTests
     [Fact]
     public void MitarbeiterseitenVerlangenEineAnmeldung()
     {
+        AssertNurAnmeldung(typeof(HRomance.Components.Pages.Start));
         AssertNurAnmeldung(typeof(HRomance.Components.Pages.Dashboard.Index));
         AssertNurAnmeldung(typeof(HRomance.Components.Pages.Kalender.Index));
         AssertNurAnmeldung(typeof(HRomance.Components.Pages.Antraege.Index));

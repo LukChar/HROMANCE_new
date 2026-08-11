@@ -10,6 +10,21 @@ namespace HRomance.Tests;
 public class AuftragServiceTests
 {
     [Fact]
+    public async Task MitarbeiterLaedtNurEigeneAuftraege()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var ersterMitarbeiter = await testdatenbank.MitarbeiterHinzufuegen(true);
+        var zweiterMitarbeiter = await testdatenbank.MitarbeiterHinzufuegen(true);
+        await testdatenbank.AuftragHinzufuegen(ersterMitarbeiter, 12, 13, "Eigener Auftrag");
+        await testdatenbank.AuftragHinzufuegen(zweiterMitarbeiter, 14, 15, "Fremder Auftrag");
+
+        var auftraege = await testdatenbank.Service.GetByMitarbeiterAsync(ersterMitarbeiter.Id);
+
+        var auftrag = Assert.Single(auftraege);
+        Assert.Equal("Eigener Auftrag", auftrag.Titel);
+    }
+
+    [Fact]
     public async Task MitarbeiterOhneKonfliktIstVerfuegbar()
     {
         using var testdatenbank = new Testdatenbank();

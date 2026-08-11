@@ -4,55 +4,31 @@
 
 @using System.Globalization
 @using HRomance.Components.Pages.Auftraege
+@using HRomance.Data
 @using HRomance.Models
 @using HRomance.Services
+@using Microsoft.AspNetCore.Identity
 
 @inject MitarbeiterService MitarbeiterService
 @inject AuftragService AuftragService
 @inject ArbeitszeitService ArbeitszeitService
 @inject AbwesenheitService AbwesenheitService
+@inject UserManager<ApplicationUser> UserManager
 
 <PageTitle>Dashboard</PageTitle>
 
 <div class="dashboard-page">
     <div class="page-header">
         <h1>Dashboard</h1>
-        <p>Übersicht über Mitarbeiter, Aufträge, Anträge und Arbeitszeiten</p>
+        <p>Übersicht über meine Einsätze, Anträge und Arbeitszeiten</p>
     </div>
-
-    @if (istManager)
-    {
-        <div class="view-switch">
-            <button type="button"
-                    class="@AnsichtsButtonKlasse(false)"
-                    @onclick="() => MitarbeiterAnsichtSetzen(false)">
-                Manager-Ansicht
-            </button>
-            <button type="button"
-                    class="@AnsichtsButtonKlasse(true)"
-                    @onclick="() => MitarbeiterAnsichtSetzen(true)">
-                Mitarbeiter-Ansicht
-            </button>
-        </div>
-    }
 
     <section class="dashboard-section working-time-overview">
         <div class="section-header">
-            <h2>@(mitarbeiterAnsicht ? "Meine Arbeitszeit" : "Arbeitszeit")</h2>
+            <h2>Meine Arbeitszeit</h2>
         </div>
 
         <div class="working-time-content">
-            <div class="employee-selection">
-                <label for="dashboard-mitarbeiter">Mitarbeiter</label>
-                <select id="dashboard-mitarbeiter" value="@ausgewaehlterMitarbeiterId" @onchange="MitarbeiterGeaendert">
-                    <option value="0">Bitte auswählen</option>
-                    @foreach (var person in mitarbeiter)
-                    {
-                        <option value="@person.Id">@person.Vorname @person.Nachname</option>
-                    }
-                </select>
-            </div>
-
             @if (ausgewaehlterMitarbeiterId != 0)
             {
                 <div class="working-time-value">
@@ -82,117 +58,14 @@
                     </button>
                 </div>
             }
+            else
+            {
+                <p class="empty-message">Dem Benutzer ist kein Mitarbeiter zugeordnet.</p>
+            }
         </div>
     </section>
 
-    @if (!mitarbeiterAnsicht)
-    {
-        <div class="summary-grid">
-        <div class="summary-card">
-            <span>Mitarbeiter</span>
-            <strong>@mitarbeiter.Count gesamt</strong>
-            <small>@verfuegbareMitarbeiter verfügbar · @nichtVerfuegbareMitarbeiter nicht verfügbar</small>
-        </div>
-        <div class="summary-card">
-            <span>Offene Aufträge</span>
-            <strong>@offeneAuftraege</strong>
-            <small>Noch ohne Mitarbeiter</small>
-        </div>
-        <div class="summary-card">
-            <span>Besetzte Aufträge</span>
-            <strong>@besetzteAuftraege</strong>
-            <small>Mindestens ein Mitarbeiter</small>
-        </div>
-        <div class="summary-card">
-            <span>Offene Anträge</span>
-            <strong>@offeneAntraege.Count</strong>
-            <small>Noch nicht bearbeitet</small>
-        </div>
-        </div>
-
-        <div class="dashboard-grid">
-        <section class="dashboard-section today-orders">
-            <div class="section-header">
-                <h2>Heutige Einsätze</h2>
-            </div>
-
-            @if (heutigeAuftraege.Count == 0)
-            {
-                <p class="empty-message">Heute finden keine Einsätze statt.</p>
-            }
-            else
-            {
-                <div class="entry-list">
-                    @foreach (var auftrag in heutigeAuftraege)
-                    {
-                        <button type="button" class="dashboard-entry order-entry" @onclick="() => AuftragOeffnen(auftrag)">
-                            <strong>@auftrag.Titel</strong>
-                            <span>@(auftrag.Kunde?.Firmenname ?? "Kein Kunde")</span>
-                            <span>Mitarbeiter: @MitarbeiterNamen(auftrag)</span>
-                            <small>@(AuftragService.IstBesetzt(auftrag) ? "Besetzt" : "Offen")</small>
-                        </button>
-                    }
-                </div>
-            }
-        </section>
-
-        <section class="dashboard-section open-requests">
-            <div class="section-header">
-                <h2>Offene Anträge</h2>
-            </div>
-
-            @if (offeneAntraege.Count == 0)
-            {
-                <p class="empty-message">Es sind keine offenen Anträge vorhanden.</p>
-            }
-            else
-            {
-                <div class="entry-list">
-                    @for (var i = 0; i < offeneAntraege.Count && i < 5; i++)
-                    {
-                        var antrag = offeneAntraege[i];
-                        <div class="dashboard-entry compact-entry">
-                            <strong>@MitarbeiterName(antrag.Mitarbeiter)</strong>
-                            <span>@antrag.Typ · @antrag.Von.ToString("dd.MM.") - @antrag.Bis.ToString("dd.MM.")</span>
-                        </div>
-                    }
-                </div>
-
-                @if (offeneAntraege.Count > 5)
-                {
-                    <a class="section-link" href="/antraege">Alle Anträge anzeigen</a>
-                }
-            }
-        </section>
-
-        <section class="dashboard-section today-absent">
-            <div class="section-header">
-                <h2>Heute abwesend</h2>
-            </div>
-
-            @if (heutigeAbwesenheiten.Count == 0)
-            {
-                <p class="empty-message">Heute ist niemand abwesend.</p>
-            }
-            else
-            {
-                <div class="entry-list">
-                    @foreach (var abwesenheit in heutigeAbwesenheiten)
-                    {
-                        <div class="dashboard-entry compact-entry">
-                            <strong>@MitarbeiterName(abwesenheit.Mitarbeiter)</strong>
-                            <span>@abwesenheit.Typ</span>
-                        </div>
-                    }
-                </div>
-            }
-        </section>
-
-        </div>
-    }
-    else
-    {
-        <div class="personal-grid">
+    <div class="personal-grid">
             <section class="dashboard-section">
                 <div class="section-header">
                     <h2>Meine nächsten Einsätze</h2>
@@ -200,7 +73,7 @@
 
                 @if (ausgewaehlterMitarbeiterId == 0)
                 {
-                    <p class="empty-message">Bitte einen Mitarbeiter auswählen.</p>
+                    <p class="empty-message">Dem Benutzer ist kein Mitarbeiter zugeordnet.</p>
                 }
                 else if (PersoenlicheEinsaetze().Count == 0)
                 {
@@ -229,7 +102,7 @@
 
                 @if (ausgewaehlterMitarbeiterId == 0)
                 {
-                    <p class="empty-message">Bitte einen Mitarbeiter auswählen.</p>
+                    <p class="empty-message">Dem Benutzer ist kein Mitarbeiter zugeordnet.</p>
                 }
                 else if (PersoenlicheAbwesenheiten().Count == 0)
                 {
@@ -249,8 +122,7 @@
                     </div>
                 }
             </section>
-        </div>
-    }
+    </div>
 </div>
 
 @if (ausgewaehlterAuftrag != null)
@@ -270,18 +142,6 @@
                 <DataAnnotationsValidator />
 
                 <div class="entry-form">
-                    <div class="form-group">
-                        <label>Mitarbeiter</label>
-                        <InputSelect class="form-input" @bind-Value="neueArbeitszeit.MitarbeiterId">
-                            <option value="0">Bitte auswählen</option>
-                            @foreach (var person in mitarbeiter)
-                            {
-                                <option value="@person.Id">@person.Vorname @person.Nachname</option>
-                            }
-                        </InputSelect>
-                        <ValidationMessage For="@(() => neueArbeitszeit.MitarbeiterId)" />
-                    </div>
-
                     <div class="form-group">
                         <label>Datum</label>
                         <InputDate class="form-input" @bind-Value="neueArbeitszeit.Datum" />
@@ -337,16 +197,7 @@
     private List<Auftrag> auftraege = new();
     private List<Arbeitszeit> arbeitszeiten = new();
     private List<Abwesenheit> abwesenheiten = new();
-    private List<Auftrag> heutigeAuftraege = new();
-    private List<Abwesenheit> offeneAntraege = new();
-    private List<Abwesenheit> heutigeAbwesenheiten = new();
-    private int verfuegbareMitarbeiter;
-    private int nichtVerfuegbareMitarbeiter;
-    private int offeneAuftraege;
-    private int besetzteAuftraege;
     private int ausgewaehlterMitarbeiterId;
-    private bool mitarbeiterAnsicht;
-    private bool istManager;
     private Auftrag? ausgewaehlterAuftrag;
     private bool arbeitszeitPopupSichtbar;
     private Arbeitszeit neueArbeitszeit = new();
@@ -359,80 +210,28 @@
     protected override async Task OnInitializedAsync()
     {
         var authenticationState = await AuthenticationStateTask;
-        istManager = authenticationState.User.IsInRole("Admin")
-            || authenticationState.User.IsInRole("Disponent");
-        mitarbeiterAnsicht = !istManager;
+        var user = await UserManager.GetUserAsync(authenticationState.User);
+        ausgewaehlterMitarbeiterId = user?.MitarbeiterId ?? 0;
 
-        mitarbeiter = await MitarbeiterService.GetAllAsync();
-        auftraege = await AuftragService.GetAllAsync();
-        arbeitszeiten = await ArbeitszeitService.GetAllAsync();
-        abwesenheiten = await AbwesenheitService.GetAllAsync();
-
-        foreach (var person in mitarbeiter)
+        if (ausgewaehlterMitarbeiterId == 0)
         {
-            if (person.Verfuegbar)
-            {
-                verfuegbareMitarbeiter++;
-            }
-            else
-            {
-                nichtVerfuegbareMitarbeiter++;
-            }
+            return;
         }
 
-        foreach (var auftrag in auftraege)
-        {
-            if (AuftragService.IstBesetzt(auftrag))
-            {
-                besetzteAuftraege++;
-            }
-            else
-            {
-                offeneAuftraege++;
-            }
+        var person = await MitarbeiterService.GetByIdAsync(ausgewaehlterMitarbeiterId);
 
-            if (AuftragService.IstEinsatzAmTag(auftrag, DateTime.Today))
-            {
-                heutigeAuftraege.Add(auftrag);
-            }
+        if (person != null)
+        {
+            mitarbeiter.Add(person);
         }
 
-        foreach (var abwesenheit in abwesenheiten)
-        {
-            if (AbwesenheitService.IstOffenerAntrag(abwesenheit))
-            {
-                offeneAntraege.Add(abwesenheit);
-            }
-
-            if (AbwesenheitService.IstAbwesendAmTag(abwesenheit, DateTime.Today))
-            {
-                heutigeAbwesenheiten.Add(abwesenheit);
-            }
-        }
+        auftraege = await AuftragService.GetByMitarbeiterAsync(ausgewaehlterMitarbeiterId);
+        arbeitszeiten = await ArbeitszeitService.GetByMitarbeiterAsync(ausgewaehlterMitarbeiterId);
+        abwesenheiten = await AbwesenheitService.GetByMitarbeiterAsync(ausgewaehlterMitarbeiterId);
     }
 
     [CascadingParameter]
     private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
-
-    private void MitarbeiterGeaendert(ChangeEventArgs e)
-    {
-        int.TryParse(e.Value?.ToString(), out ausgewaehlterMitarbeiterId);
-    }
-
-    private void MitarbeiterAnsichtSetzen(bool istMitarbeiterAnsicht)
-    {
-        mitarbeiterAnsicht = istMitarbeiterAnsicht;
-    }
-
-    private string AnsichtsButtonKlasse(bool istMitarbeiterAnsicht)
-    {
-        if (mitarbeiterAnsicht == istMitarbeiterAnsicht)
-        {
-            return "view-button active-view";
-        }
-
-        return "view-button";
-    }
 
     private List<Abwesenheit> PersoenlicheAbwesenheiten()
     {
@@ -629,6 +428,14 @@
 
     private async Task ArbeitszeitSpeichern()
     {
+        neueArbeitszeit.MitarbeiterId = ausgewaehlterMitarbeiterId;
+
+        if (ausgewaehlterMitarbeiterId == 0)
+        {
+            arbeitszeitFehler = "Dem Benutzer ist kein Mitarbeiter zugeordnet.";
+            return;
+        }
+
         beginnFehler = string.Empty;
         endeFehler = string.Empty;
 
@@ -660,7 +467,7 @@
         }
 
         await ArbeitszeitService.AddAsync(neueArbeitszeit);
-        arbeitszeiten = await ArbeitszeitService.GetAllAsync();
+        arbeitszeiten = await ArbeitszeitService.GetByMitarbeiterAsync(ausgewaehlterMitarbeiterId);
         ArbeitszeitPopupSchliessen();
     }
 
@@ -674,20 +481,4 @@
         return person.Vorname + " " + person.Nachname;
     }
 
-    private string MitarbeiterNamen(Auftrag auftrag)
-    {
-        var namen = string.Empty;
-
-        foreach (var person in auftrag.Mitarbeiter)
-        {
-            if (namen != string.Empty)
-            {
-                namen += ", ";
-            }
-
-            namen += MitarbeiterName(person);
-        }
-
-        return namen == string.Empty ? "Keine" : namen;
-    }
 }

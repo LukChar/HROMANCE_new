@@ -3,70 +3,31 @@
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 
 @using System.Globalization
+@using HRomance.Data
 @using HRomance.Models
 @using HRomance.Services
+@using Microsoft.AspNetCore.Identity
 
 @inject AuftragService AuftragService
 @inject MitarbeiterService MitarbeiterService
 @inject ArbeitszeitService ArbeitszeitService
 @inject AbwesenheitService AbwesenheitService
 @inject NavigationManager NavigationManager
+@inject UserManager<ApplicationUser> UserManager
 
 <PageTitle>Kalender</PageTitle>
 
 <div class="kalender-page">
     <div class="page-header">
         <h1>Kalender</h1>
-        <p>Übersicht über geplante Aufträge</p>
-    </div>
-
-    <div class="employee-filter">
-        <label for="mitarbeitersuche">Mitarbeiter:</label>
-
-        @if (mitarbeitervorschlaegeSichtbar)
-        {
-            <div class="employee-search-backdrop" @onclick="MitarbeitersucheSchliessen"></div>
-        }
-
-        <div class="employee-search" @onclick:stopPropagation="true">
-            <input id="mitarbeitersuche"
-                   type="text"
-                   placeholder="Mitarbeiter suchen..."
-                   value="@mitarbeitersuche"
-                   @onfocus="MitarbeitersucheOeffnen"
-                   @oninput="MitarbeitersucheGeaendert" />
-
-            @if (mitarbeitervorschlaegeSichtbar)
-            {
-                <div class="employee-suggestions">
-                    <button type="button" class="employee-suggestion all-employees" @onclick="AlleMitarbeiterAuswaehlen">
-                        <strong>Alle Mitarbeiter</strong>
-                    </button>
-
-                    @if (GefilterteMitarbeiter().Count == 0)
-                    {
-                        <div class="no-employee-results">Keine Mitarbeiter gefunden.</div>
-                    }
-                    else
-                    {
-                        @foreach (var mitarbeiter in GefilterteMitarbeiter())
-                        {
-                            <button type="button" class="employee-suggestion" @onclick="() => MitarbeiterAuswaehlen(mitarbeiter)">
-                                <strong>@MitarbeiterName(mitarbeiter)</strong>
-                                <span>@mitarbeiter.Personalnummer · @MitarbeiterQualifikationen(mitarbeiter)</span>
-                            </button>
-                        }
-                    }
-                </div>
-            }
-        </div>
+        <p>Mein persönlicher Kalender</p>
     </div>
 
     <div class="employee-summary">
         <strong>@AusgewaehlterMitarbeiterName()</strong>
-        @if (mitarbeiterfilter == 0)
+        @if (mitarbeiterId == 0)
         {
-            <span>@Monatsname()</span>
+            <span>Dem Benutzer ist kein Mitarbeiter zugeordnet.</span>
         }
         else
         {
@@ -297,18 +258,6 @@
 
                         <div class="entry-form">
                             <div class="form-group">
-                                <label>Mitarbeiter</label>
-                                <InputSelect class="form-input" @bind-Value="bearbeiteteArbeitszeit.MitarbeiterId">
-                                    <option value="0">Bitte auswählen</option>
-                                    @foreach (var mitarbeiter in mitarbeiterListe)
-                                    {
-                                        <option value="@mitarbeiter.Id">@mitarbeiter.Vorname @mitarbeiter.Nachname</option>
-                                    }
-                                </InputSelect>
-                                <ValidationMessage For="@(() => bearbeiteteArbeitszeit.MitarbeiterId)" />
-                            </div>
-
-                            <div class="form-group">
                                 <label>Datum</label>
                                 <InputDate class="form-input" @bind-Value="bearbeiteteArbeitszeit.Datum" />
                             </div>
@@ -369,18 +318,6 @@
                         <DataAnnotationsValidator />
 
                         <div class="entry-form">
-                            <div class="form-group">
-                                <label>Mitarbeiter</label>
-                                <InputSelect class="form-input" @bind-Value="bearbeiteteAbwesenheit.MitarbeiterId">
-                                    <option value="0">Bitte auswählen</option>
-                                    @foreach (var mitarbeiter in mitarbeiterListe)
-                                    {
-                                        <option value="@mitarbeiter.Id">@mitarbeiter.Vorname @mitarbeiter.Nachname</option>
-                                    }
-                                </InputSelect>
-                                <ValidationMessage For="@(() => bearbeiteteAbwesenheit.MitarbeiterId)" />
-                            </div>
-
                             <div class="form-group">
                                 <label>Von</label>
                                 <InputDate class="form-input" @bind-Value="bearbeiteteAbwesenheit.Von" />
@@ -458,18 +395,6 @@
 
                             <div class="entry-form">
                                 <div class="form-group">
-                                    <label>Mitarbeiter</label>
-                                    <InputSelect class="form-input" @bind-Value="neueArbeitszeit.MitarbeiterId">
-                                        <option value="0">Bitte auswählen</option>
-                                        @foreach (var mitarbeiter in mitarbeiterListe)
-                                        {
-                                            <option value="@mitarbeiter.Id">@mitarbeiter.Vorname @mitarbeiter.Nachname</option>
-                                        }
-                                    </InputSelect>
-                                    <ValidationMessage For="@(() => neueArbeitszeit.MitarbeiterId)" />
-                                </div>
-
-                                <div class="form-group">
                                     <label>Datum</label>
                                     <InputDate class="form-input" @bind-Value="neueArbeitszeit.Datum" />
                                 </div>
@@ -524,18 +449,6 @@
                             <DataAnnotationsValidator />
 
                             <div class="entry-form">
-                                <div class="form-group">
-                                    <label>Mitarbeiter</label>
-                                    <InputSelect class="form-input" @bind-Value="neueAbwesenheit.MitarbeiterId">
-                                        <option value="0">Bitte auswählen</option>
-                                        @foreach (var mitarbeiter in mitarbeiterListe)
-                                        {
-                                            <option value="@mitarbeiter.Id">@mitarbeiter.Vorname @mitarbeiter.Nachname</option>
-                                        }
-                                    </InputSelect>
-                                    <ValidationMessage For="@(() => neueAbwesenheit.MitarbeiterId)" />
-                                </div>
-
                                 <div class="form-group">
                                     <label>Von</label>
                                     <InputDate class="form-input" @bind-Value="neueAbwesenheit.Von" />
@@ -720,17 +633,33 @@
     private Arbeitszeit? popupArbeitszeit;
     private Abwesenheit? popupAbwesenheit;
     private DateTime? popupTageslisteDatum;
-    private int mitarbeiterfilter;
-    private string mitarbeitersuche = string.Empty;
-    private bool mitarbeitervorschlaegeSichtbar;
+    private int mitarbeiterId;
 
     protected override async Task OnInitializedAsync()
     {
-        auftraege = await AuftragService.GetAllAsync();
-        mitarbeiterListe = await MitarbeiterService.GetAllAsync();
-        arbeitszeiten = await ArbeitszeitService.GetAllAsync();
-        abwesenheiten = await AbwesenheitService.GetAllAsync();
+        var authenticationState = await AuthenticationStateTask;
+        var user = await UserManager.GetUserAsync(authenticationState.User);
+        mitarbeiterId = user?.MitarbeiterId ?? 0;
+
+        if (mitarbeiterId == 0)
+        {
+            return;
+        }
+
+        var mitarbeiter = await MitarbeiterService.GetByIdAsync(mitarbeiterId);
+
+        if (mitarbeiter != null)
+        {
+            mitarbeiterListe.Add(mitarbeiter);
+        }
+
+        auftraege = await AuftragService.GetByMitarbeiterAsync(mitarbeiterId);
+        arbeitszeiten = await ArbeitszeitService.GetByMitarbeiterAsync(mitarbeiterId);
+        abwesenheiten = await AbwesenheitService.GetByMitarbeiterAsync(mitarbeiterId);
     }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
 
     private void VorherigerMonat()
     {
@@ -799,6 +728,7 @@
         {
             neueArbeitszeit = new Arbeitszeit
             {
+                MitarbeiterId = mitarbeiterId,
                 Datum = ausgewaehltesDatum.Value,
                 Beginn = new TimeOnly(8, 0),
                 Ende = new TimeOnly(16, 0)
@@ -810,6 +740,7 @@
         {
             neueAbwesenheit = new Abwesenheit
             {
+                MitarbeiterId = mitarbeiterId,
                 Von = ausgewaehltesDatum.Value,
                 Bis = ausgewaehltesDatum.Value,
                 Typ = eintragsart == "Urlaub" ? "Urlaub" : "Sonstige Abwesenheit",
@@ -820,6 +751,14 @@
 
     private async Task ArbeitszeitSpeichern()
     {
+        neueArbeitszeit.MitarbeiterId = mitarbeiterId;
+
+        if (mitarbeiterId == 0)
+        {
+            formularFehler = "Dem Benutzer ist kein Mitarbeiter zugeordnet.";
+            return;
+        }
+
         if (!ZeittexteUebernehmen(neueArbeitszeit))
         {
             return;
@@ -833,12 +772,20 @@
         }
 
         await ArbeitszeitService.AddAsync(neueArbeitszeit);
-        arbeitszeiten = await ArbeitszeitService.GetAllAsync();
+        arbeitszeiten = await ArbeitszeitService.GetByMitarbeiterAsync(mitarbeiterId);
         EintragAbbrechen();
     }
 
     private async Task AbwesenheitSpeichern()
     {
+        neueAbwesenheit.MitarbeiterId = mitarbeiterId;
+
+        if (mitarbeiterId == 0)
+        {
+            formularFehler = "Dem Benutzer ist kein Mitarbeiter zugeordnet.";
+            return;
+        }
+
         if (neueAbwesenheit.Bis.Date < neueAbwesenheit.Von.Date)
         {
             formularFehler = "Das Bis-Datum darf nicht vor dem Von-Datum liegen.";
@@ -847,7 +794,7 @@
 
         neueAbwesenheit.Status = "Offen";
         await AbwesenheitService.AddAsync(neueAbwesenheit);
-        abwesenheiten = await AbwesenheitService.GetAllAsync();
+        abwesenheiten = await AbwesenheitService.GetByMitarbeiterAsync(mitarbeiterId);
         EintragAbbrechen();
     }
 
@@ -872,6 +819,8 @@
 
     private async Task ArbeitszeitAenderungenSpeichern()
     {
+        bearbeiteteArbeitszeit.MitarbeiterId = mitarbeiterId;
+
         if (!ZeittexteUebernehmen(bearbeiteteArbeitszeit))
         {
             return;
@@ -885,14 +834,14 @@
         }
 
         await ArbeitszeitService.UpdateAsync(bearbeiteteArbeitszeit);
-        arbeitszeiten = await ArbeitszeitService.GetAllAsync();
+        arbeitszeiten = await ArbeitszeitService.GetByMitarbeiterAsync(mitarbeiterId);
         BearbeitungAbbrechen();
     }
 
     private async Task ArbeitszeitLoeschen(int id)
     {
         await ArbeitszeitService.DeleteAsync(id);
-        arbeitszeiten = await ArbeitszeitService.GetAllAsync();
+        arbeitszeiten = await ArbeitszeitService.GetByMitarbeiterAsync(mitarbeiterId);
 
         if (bearbeiteteArbeitszeit.Id == id)
         {
@@ -920,6 +869,8 @@
 
     private async Task AbwesenheitAenderungenSpeichern()
     {
+        bearbeiteteAbwesenheit.MitarbeiterId = mitarbeiterId;
+
         if (bearbeiteteAbwesenheit.Bis.Date < bearbeiteteAbwesenheit.Von.Date)
         {
             formularFehler = "Das Bis-Datum darf nicht vor dem Von-Datum liegen.";
@@ -927,14 +878,14 @@
         }
 
         await AbwesenheitService.UpdateAsync(bearbeiteteAbwesenheit);
-        abwesenheiten = await AbwesenheitService.GetAllAsync();
+        abwesenheiten = await AbwesenheitService.GetByMitarbeiterAsync(mitarbeiterId);
         BearbeitungAbbrechen();
     }
 
     private async Task AbwesenheitLoeschen(int id)
     {
         await AbwesenheitService.DeleteAsync(id);
-        abwesenheiten = await AbwesenheitService.GetAllAsync();
+        abwesenheiten = await AbwesenheitService.GetByMitarbeiterAsync(mitarbeiterId);
 
         if (bearbeiteteAbwesenheit.Id == id)
         {
@@ -1116,85 +1067,6 @@
         await AbwesenheitLoeschen(id);
     }
 
-    private void MitarbeitersucheOeffnen()
-    {
-        mitarbeitersuche = string.Empty;
-        mitarbeitervorschlaegeSichtbar = true;
-    }
-
-    private void MitarbeitersucheGeaendert(ChangeEventArgs e)
-    {
-        mitarbeitersuche = e.Value?.ToString() ?? string.Empty;
-        mitarbeitervorschlaegeSichtbar = true;
-    }
-
-    private void MitarbeiterAuswaehlen(Mitarbeiter mitarbeiter)
-    {
-        mitarbeiterfilter = mitarbeiter.Id;
-        mitarbeitersuche = MitarbeiterName(mitarbeiter);
-        mitarbeitervorschlaegeSichtbar = false;
-    }
-
-    private void AlleMitarbeiterAuswaehlen()
-    {
-        mitarbeiterfilter = 0;
-        mitarbeitersuche = string.Empty;
-        mitarbeitervorschlaegeSichtbar = false;
-    }
-
-    private void MitarbeitersucheSchliessen()
-    {
-        var ausgewaehlterMitarbeiter = mitarbeiterListe.Find(m => m.Id == mitarbeiterfilter);
-
-        if (ausgewaehlterMitarbeiter == null)
-        {
-            mitarbeitersuche = string.Empty;
-        }
-        else
-        {
-            mitarbeitersuche = MitarbeiterName(ausgewaehlterMitarbeiter);
-        }
-
-        mitarbeitervorschlaegeSichtbar = false;
-    }
-
-    private List<Mitarbeiter> GefilterteMitarbeiter()
-    {
-        var gefilterteMitarbeiter = new List<Mitarbeiter>();
-
-        foreach (var mitarbeiter in mitarbeiterListe)
-        {
-            if (MitarbeiterService.PasstZurSuche(mitarbeiter, mitarbeitersuche))
-            {
-                gefilterteMitarbeiter.Add(mitarbeiter);
-            }
-        }
-
-        return gefilterteMitarbeiter;
-    }
-
-    private string MitarbeiterQualifikationen(Mitarbeiter mitarbeiter)
-    {
-        var namen = string.Empty;
-
-        foreach (var qualifikation in mitarbeiter.Qualifikationen)
-        {
-            if (namen != string.Empty)
-            {
-                namen += ", ";
-            }
-
-            namen += qualifikation.Name;
-        }
-
-        if (namen == string.Empty)
-        {
-            return "Keine Qualifikation";
-        }
-
-        return namen;
-    }
-
     private string AuftragQualifikationen(Auftrag auftrag)
     {
         var namen = string.Empty;
@@ -1258,11 +1130,11 @@
 
     private string AusgewaehlterMitarbeiterName()
     {
-        var mitarbeiter = mitarbeiterListe.Find(m => m.Id == mitarbeiterfilter);
+        var mitarbeiter = mitarbeiterListe.Find(m => m.Id == mitarbeiterId);
 
         if (mitarbeiter == null)
         {
-            return "Alle Mitarbeiter";
+            return "Kein Mitarbeiter zugeordnet";
         }
 
         return MitarbeiterName(mitarbeiter);
@@ -1272,7 +1144,7 @@
     {
         var stunden = ArbeitszeitService.BerechneMonatsstunden(
             arbeitszeiten,
-            mitarbeiterfilter,
+            mitarbeiterId,
             angezeigterMonat.Year,
             angezeigterMonat.Month);
 
@@ -1309,7 +1181,7 @@
         {
             if (datum.Date >= auftrag.Startdatum.Date
                 && datum.Date <= auftrag.Enddatum.Date
-                && AuftragService.PasstZuMitarbeiter(auftrag, mitarbeiterfilter))
+                && AuftragService.PasstZuMitarbeiter(auftrag, mitarbeiterId))
             {
                 passendeAuftraege.Add(auftrag);
             }
@@ -1325,7 +1197,7 @@
         foreach (var arbeitszeit in arbeitszeiten)
         {
             if (arbeitszeit.Datum.Date == datum.Date
-                && ArbeitszeitService.PasstZuMitarbeiter(arbeitszeit, mitarbeiterfilter))
+                && arbeitszeit.MitarbeiterId == mitarbeiterId)
             {
                 passendeArbeitszeiten.Add(arbeitszeit);
             }
@@ -1349,7 +1221,7 @@
         {
             if (datum.Date >= abwesenheit.Von.Date
                 && datum.Date <= abwesenheit.Bis.Date
-                && AbwesenheitService.PasstZuMitarbeiter(abwesenheit, mitarbeiterfilter))
+                && abwesenheit.MitarbeiterId == mitarbeiterId)
             {
                 passendeAbwesenheiten.Add(abwesenheit);
             }

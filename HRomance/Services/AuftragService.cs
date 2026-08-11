@@ -33,6 +33,17 @@ namespace HRomance.Services
                 .FirstOrDefaultAsync(a => a.Id == id);
         }
 
+        public async Task<List<Auftrag>> GetByMitarbeiterAsync(int mitarbeiterId)
+        {
+            return await _context.Auftraege
+                .Include(a => a.Kunde)
+                .Include(a => a.Qualifikationen)
+                .Include(a => a.Mitarbeiter)
+                    .ThenInclude(m => m.Qualifikationen)
+                .Where(a => a.Mitarbeiter.Any(m => m.Id == mitarbeiterId))
+                .ToListAsync();
+        }
+
         public async Task AddAsync(Auftrag auftrag)
         {
             auftrag.Besetzt = auftrag.Mitarbeiter.Count > 0;

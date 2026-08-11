@@ -7,6 +7,7 @@
 
 @inject MitarbeiterService MitarbeiterService
 @inject QualifikationService QualifikationService
+@inject ArbeitszeitService ArbeitszeitService
 
 <PageTitle>Mitarbeiter</PageTitle>
 
@@ -166,6 +167,7 @@
             <h2>Mitarbeiterdetails</h2>
 
             <div class="popup-details">
+                <h3>Stammdaten</h3>
                 <strong>@ausgewaehlterMitarbeiter.Vorname @ausgewaehlterMitarbeiter.Nachname</strong>
                 <span>Personalnummer: @ausgewaehlterMitarbeiter.Personalnummer</span>
                 <span>E-Mail: @ausgewaehlterMitarbeiter.Email</span>
@@ -176,6 +178,12 @@
                 <span>Wochenstunden: @ausgewaehlterMitarbeiter.Wochenarbeitszeit</span>
                 <span>Verfügbarkeit: @(ausgewaehlterMitarbeiter.Verfuegbar ? "Verfügbar" : "Nicht verfügbar")</span>
                 <span>Qualifikationen: @QualifikationenAnzeigen(ausgewaehlterMitarbeiter)</span>
+
+                <h3>Arbeitszeit – @AktuellerMonat()</h3>
+                <span>Arbeitszeit: @DezimalstundenAnzeigen(monatsArbeitszeit) h</span>
+                <span>Abwesenheit: @AbwesenheitstageAnzeigen()</span>
+                <span>Soll: @DezimalstundenAnzeigen(monatsSoll) h</span>
+                <span>Saldo: @SaldoAnzeigen(monatsSaldo) h</span>
             </div>
 
             <div class="popup-actions">
@@ -294,6 +302,10 @@
     private List<int> ausgewaehlteQualifikationIds = new();
     private string qualifikationssuche = string.Empty;
     private bool bearbeitenPopupSichtbar;
+    private double monatsArbeitszeit;
+    private double monatsSoll;
+    private int monatsAbwesenheitstage;
+    private double monatsSaldo;
 
     protected override async Task OnInitializedAsync()
     {
@@ -365,14 +377,29 @@
         }
     }
 
-    private void DetailsOeffnen(Mitarbeiter mitarbeiter)
+    private async Task DetailsOeffnen(Mitarbeiter mitarbeiter)
     {
+        var auswertung = await ArbeitszeitService.GetMonatsauswertungAsync(
+            mitarbeiter.Id,
+            DateTime.Today.Year,
+            DateTime.Today.Month,
+            mitarbeiter.Wochenarbeitszeit,
+            DateTime.Today);
+
+        monatsArbeitszeit = auswertung.Arbeitszeit;
+        monatsSoll = auswertung.Soll;
+        monatsAbwesenheitstage = auswertung.Abwesenheitstage;
+        monatsSaldo = auswertung.Saldo;
         ausgewaehlterMitarbeiter = mitarbeiter;
     }
 
     private void DetailsSchliessen()
     {
         ausgewaehlterMitarbeiter = null;
+        monatsArbeitszeit = 0;
+        monatsSoll = 0;
+        monatsAbwesenheitstage = 0;
+        monatsSaldo = 0;
     }
 
     private void BearbeitenOeffnen(Mitarbeiter mitarbeiter)
@@ -477,5 +504,34 @@
         }
 
         return namen == string.Empty ? "Keine Qualifikationen zugewiesen" : namen;
+    }
+
+    private string AktuellerMonat()
+    {
+        var kultur = System.Globalization.CultureInfo.GetCultureInfo("de-DE");
+        return DateTime.Today.ToString("MMMM yyyy", kultur);
+    }
+
+    private string DezimalstundenAnzeigen(double stunden)
+    {
+        var kultur = System.Globalization.CultureInfo.GetCultureInfo("de-DE");
+        return Math.Round(stunden, 1).ToString("0.0", kultur);
+    }
+
+    private string AbwesenheitstageAnzeigen()
+    {
+        return monatsAbwesenheitstage == 1
+            ? "1 Tag"
+            : monatsAbwesenheitstage + " Tage";
+    }
+
+    private string SaldoAnzeigen(double stunden)
+    {
+        if (stunden > 0)
+        {
+            return "+" + DezimalstundenAnzeigen(stunden);
+        }
+
+        return DezimalstundenAnzeigen(stunden);
     }
 }
