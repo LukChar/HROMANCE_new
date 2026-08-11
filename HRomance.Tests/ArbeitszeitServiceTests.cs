@@ -490,6 +490,98 @@ public class ArbeitszeitServiceTests
     }
 
     [Fact]
+    public void VollerArbeitstagUndUrlaubErgebenKeineAbwesenheitsgutschrift()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var arbeitszeiten = new List<Arbeitszeit> { ArbeitszeitAmTag(1, 3, 8) };
+        var abwesenheiten = new List<Abwesenheit>
+        {
+            AbwesenheitVonBis(1, 3, 3, "Urlaub", "Genehmigt")
+        };
+
+        var abwesenheitsstunden = testdatenbank.Service.BerechneAnrechenbareAbwesenheitsstunden(
+            arbeitszeiten, abwesenheiten, 1, 2026, 8, 40, new DateTime(2026, 8, 3));
+        var saldo = testdatenbank.Service.BerechneSaldo(8, abwesenheitsstunden, 8);
+
+        Assert.Equal(0, abwesenheitsstunden);
+        Assert.Equal(0, saldo);
+    }
+
+    [Fact]
+    public void ZehnArbeitsstundenUndUrlaubBehaltenZweiPlusstunden()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var arbeitszeiten = new List<Arbeitszeit> { ArbeitszeitAmTag(1, 3, 10) };
+        var abwesenheiten = new List<Abwesenheit>
+        {
+            AbwesenheitVonBis(1, 3, 3, "Urlaub", "Genehmigt")
+        };
+
+        var abwesenheitsstunden = testdatenbank.Service.BerechneAnrechenbareAbwesenheitsstunden(
+            arbeitszeiten, abwesenheiten, 1, 2026, 8, 40, new DateTime(2026, 8, 3));
+        var saldo = testdatenbank.Service.BerechneSaldo(10, abwesenheitsstunden, 8);
+
+        Assert.Equal(0, abwesenheitsstunden);
+        Assert.Equal(2, saldo);
+    }
+
+    [Fact]
+    public void ArbeitUndUrlaubAnVerschiedenenTagenWerdenBeideAngerechnet()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var arbeitszeiten = new List<Arbeitszeit> { ArbeitszeitAmTag(1, 3, 8) };
+        var abwesenheiten = new List<Abwesenheit>
+        {
+            AbwesenheitVonBis(1, 4, 4, "Urlaub", "Genehmigt")
+        };
+
+        var abwesenheitsstunden = testdatenbank.Service.BerechneAnrechenbareAbwesenheitsstunden(
+            arbeitszeiten, abwesenheiten, 1, 2026, 8, 40, new DateTime(2026, 8, 4));
+        var saldo = testdatenbank.Service.BerechneSaldo(8, abwesenheitsstunden, 16);
+
+        Assert.Equal(8, abwesenheitsstunden);
+        Assert.Equal(0, saldo);
+    }
+
+    [Fact]
+    public void ZweiAbwesenheitenAmSelbenTagWerdenNichtDoppeltAngerechnet()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var abwesenheiten = new List<Abwesenheit>
+        {
+            AbwesenheitVonBis(1, 3, 3, "Urlaub", "Genehmigt"),
+            AbwesenheitVonBis(1, 3, 3, "Krankenstand", "Genehmigt")
+        };
+
+        var abwesenheitsstunden = testdatenbank.Service.BerechneAnrechenbareAbwesenheitsstunden(
+            [], abwesenheiten, 1, 2026, 8, 40, new DateTime(2026, 8, 3));
+
+        Assert.Equal(8, abwesenheitsstunden);
+    }
+
+    [Fact]
+    public void MehrereArbeitszeitenWerdenVorDerAbwesenheitsgutschriftAddiert()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var arbeitszeiten = new List<Arbeitszeit>
+        {
+            ArbeitszeitAmTag(1, 3, 4),
+            ArbeitszeitAmTag(1, 3, 2)
+        };
+        var abwesenheiten = new List<Abwesenheit>
+        {
+            AbwesenheitVonBis(1, 3, 3, "Urlaub", "Genehmigt")
+        };
+
+        var abwesenheitsstunden = testdatenbank.Service.BerechneAnrechenbareAbwesenheitsstunden(
+            arbeitszeiten, abwesenheiten, 1, 2026, 8, 40, new DateTime(2026, 8, 3));
+        var saldo = testdatenbank.Service.BerechneSaldo(6, abwesenheitsstunden, 8);
+
+        Assert.Equal(2, abwesenheitsstunden);
+        Assert.Equal(0, saldo);
+    }
+
+    [Fact]
     public void MehrstundenErgebenPositivenMonatssaldo()
     {
         using var testdatenbank = new Testdatenbank();
