@@ -45,6 +45,13 @@
                         <span>Arbeitszeit</span>
                         <strong>@StundenAnzeigen(MonatsIst()) h</strong>
                     </div>
+                    @if (MonatsAbwesenheitstage() > 0)
+                    {
+                        <div class="working-time-row">
+                            <span>Abwesenheit</span>
+                            <strong>@AbwesenheitstageAnzeigen()</strong>
+                        </div>
+                    }
                     <div class="working-time-row">
                         <span>Soll</span>
                         <strong>@StundenAnzeigen(MonatsSoll()) h</strong>
@@ -241,11 +248,7 @@
 
     private double MonatsIst()
     {
-        return ArbeitszeitService.BerechneMonatsstunden(
-            arbeitszeiten,
-            ausgewaehlterMitarbeiterId,
-            DateTime.Today.Year,
-            DateTime.Today.Month);
+        return Monatsauswertung().Arbeitszeit;
     }
 
     private double MonatsSoll()
@@ -257,18 +260,42 @@
             return 0;
         }
 
-        return ArbeitszeitService.BerechneMonatssoll(
-            DateTime.Today.Year,
-            DateTime.Today.Month,
-            person.Wochenarbeitszeit,
-            DateTime.Today,
-            abwesenheiten,
-            person.Id);
+        return Monatsauswertung().Soll;
     }
 
     private double MonatsSaldo()
     {
-        return ArbeitszeitService.BerechneSaldo(MonatsIst(), MonatsSoll());
+        return Monatsauswertung().Saldo;
+    }
+
+    private int MonatsAbwesenheitstage()
+    {
+        return Monatsauswertung().Abwesenheitstage;
+    }
+
+    private (double Arbeitszeit, double Soll, int Abwesenheitstage, double Saldo) Monatsauswertung()
+    {
+        var person = AusgewaehlterMitarbeiter();
+
+        if (person == null)
+        {
+            return (0, 0, 0, 0);
+        }
+
+        return ArbeitszeitService.BerechneMonatsauswertung(
+            arbeitszeiten,
+            abwesenheiten,
+            person.Id,
+            DateTime.Today.Year,
+            DateTime.Today.Month,
+            person.Wochenarbeitszeit,
+            DateTime.Today);
+    }
+
+    private string AbwesenheitstageAnzeigen()
+    {
+        var tage = MonatsAbwesenheitstage();
+        return tage == 1 ? "1 Tag" : tage + " Tage";
     }
 
     private string StundenAnzeigen(double stunden)

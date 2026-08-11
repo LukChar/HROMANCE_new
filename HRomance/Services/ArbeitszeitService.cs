@@ -258,6 +258,68 @@ public class ArbeitszeitService
         return false;
     }
 
+    public (double Arbeitszeit, double Soll, int Abwesenheitstage, double Saldo)
+        BerechneMonatsauswertung(
+            List<Arbeitszeit> arbeitszeiten,
+            List<Abwesenheit> abwesenheiten,
+            int mitarbeiterId,
+            int jahr,
+            int monat,
+            double wochenarbeitszeit,
+            DateTime aktuellesDatum)
+    {
+        var arbeitsstunden = 0.0;
+        var sollstunden = 0.0;
+        var abwesenheitstage = 0;
+        var tagesSoll = BerechneSollstundenProTag(wochenarbeitszeit);
+        var ersterTag = new DateTime(jahr, monat, 1);
+        var aktuellerMonat = new DateTime(aktuellesDatum.Year, aktuellesDatum.Month, 1);
+
+        if (ersterTag > aktuellerMonat)
+        {
+            return (0, 0, 0, 0);
+        }
+
+        var letzterTag = new DateTime(jahr, monat, DateTime.DaysInMonth(jahr, monat));
+
+        if (ersterTag == aktuellerMonat)
+        {
+            letzterTag = aktuellesDatum.Date;
+        }
+
+        var tag = ersterTag;
+
+        while (tag <= letzterTag)
+        {
+            if (tag.DayOfWeek != DayOfWeek.Saturday
+                && tag.DayOfWeek != DayOfWeek.Sunday)
+            {
+                if (HatSollreduzierendeAbwesenheit(abwesenheiten, mitarbeiterId, tag))
+                {
+                    abwesenheitstage++;
+                }
+                else
+                {
+                    sollstunden += tagesSoll;
+
+                    foreach (var arbeitszeit in arbeitszeiten)
+                    {
+                        if (arbeitszeit.MitarbeiterId == mitarbeiterId
+                            && arbeitszeit.Datum.Date == tag.Date)
+                        {
+                            arbeitsstunden += BerechneArbeitsstunden(arbeitszeit);
+                        }
+                    }
+                }
+            }
+
+            tag = tag.AddDays(1);
+        }
+
+        var saldo = BerechneSaldo(arbeitsstunden, sollstunden);
+        return (arbeitsstunden, sollstunden, abwesenheitstage, saldo);
+    }
+
     public async Task<(double Ist, double Soll, double Saldo)> GetMonatswerteAsync(
         int mitarbeiterId,
         int jahr,
@@ -283,16 +345,15 @@ public class ArbeitszeitService
         var alleAbwesenheiten = await _context.Abwesenheiten
             .Where(a => a.MitarbeiterId == mitarbeiterId)
             .ToListAsync();
-        var istStunden = BerechneMonatsstunden(alleArbeitszeiten, mitarbeiterId, jahr, monat);
-        var sollStunden = BerechneMonatssoll(
+        var auswertung = BerechneMonatsauswertung(
+            alleArbeitszeiten,
+            alleAbwesenheiten,
+            mitarbeiterId,
             jahr,
             monat,
             wochenarbeitszeit,
-            aktuellesDatum,
-            alleAbwesenheiten,
-            mitarbeiterId);
-        var saldo = BerechneSaldo(istStunden, sollStunden);
+            aktuellesDatum);
 
-        return (istStunden, sollStunden, saldo);
+        return (auswertung.Arbeitszeit, auswertung.Soll, auswertung.Saldo);
     }
 }
