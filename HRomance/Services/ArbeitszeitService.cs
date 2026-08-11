@@ -180,6 +180,23 @@ public class ArbeitszeitService
         double wochenarbeitszeit,
         DateTime aktuellesDatum)
     {
+        return BerechneMonatssoll(
+            jahr,
+            monat,
+            wochenarbeitszeit,
+            aktuellesDatum,
+            new List<Abwesenheit>(),
+            0);
+    }
+
+    public double BerechneMonatssoll(
+        int jahr,
+        int monat,
+        double wochenarbeitszeit,
+        DateTime aktuellesDatum,
+        List<Abwesenheit> abwesenheiten,
+        int mitarbeiterId)
+    {
         var sollstunden = 0.0;
         var sollstundenProTag = BerechneSollstundenProTag(wochenarbeitszeit);
         var ersterTag = new DateTime(jahr, monat, 1);
@@ -202,7 +219,8 @@ public class ArbeitszeitService
         while (tag <= letzterTag)
         {
             if (tag.DayOfWeek != DayOfWeek.Saturday
-                && tag.DayOfWeek != DayOfWeek.Sunday)
+                && tag.DayOfWeek != DayOfWeek.Sunday
+                && !HatSollreduzierendeAbwesenheit(abwesenheiten, mitarbeiterId, tag))
             {
                 sollstunden += sollstundenProTag;
             }
@@ -218,74 +236,7 @@ public class ArbeitszeitService
         return iststunden - sollstunden;
     }
 
-    public double BerechneSaldo(
-        double arbeitsstunden,
-        double abwesenheitsstunden,
-        double sollstunden)
-    {
-        return arbeitsstunden + abwesenheitsstunden - sollstunden;
-    }
-
-    public double BerechneAnrechenbareAbwesenheitsstunden(
-        List<Arbeitszeit> arbeitszeiten,
-        List<Abwesenheit> abwesenheiten,
-        int mitarbeiterId,
-        int jahr,
-        int monat,
-        double wochenarbeitszeit,
-        DateTime aktuellesDatum)
-    {
-        var ersterTag = new DateTime(jahr, monat, 1);
-        var aktuellerMonat = new DateTime(aktuellesDatum.Year, aktuellesDatum.Month, 1);
-
-        if (ersterTag > aktuellerMonat)
-        {
-            return 0;
-        }
-
-        var letzterTag = new DateTime(jahr, monat, DateTime.DaysInMonth(jahr, monat));
-
-        if (ersterTag == aktuellerMonat)
-        {
-            letzterTag = aktuellesDatum.Date;
-        }
-
-        var tagesSoll = BerechneSollstundenProTag(wochenarbeitszeit);
-        var abwesenheitsstunden = 0.0;
-        var tag = ersterTag;
-
-        while (tag <= letzterTag)
-        {
-            if (tag.DayOfWeek != DayOfWeek.Saturday
-                && tag.DayOfWeek != DayOfWeek.Sunday
-                && HatAnrechenbareAbwesenheit(abwesenheiten, mitarbeiterId, tag))
-            {
-                var arbeitsstundenAmTag = 0.0;
-
-                foreach (var arbeitszeit in arbeitszeiten)
-                {
-                    if (arbeitszeit.MitarbeiterId == mitarbeiterId
-                        && arbeitszeit.Datum.Date == tag.Date)
-                    {
-                        arbeitsstundenAmTag += BerechneArbeitsstunden(arbeitszeit);
-                    }
-                }
-
-                var fehlendeStunden = tagesSoll - arbeitsstundenAmTag;
-
-                if (fehlendeStunden > 0)
-                {
-                    abwesenheitsstunden += fehlendeStunden;
-                }
-            }
-
-            tag = tag.AddDays(1);
-        }
-
-        return abwesenheitsstunden;
-    }
-
-    private bool HatAnrechenbareAbwesenheit(
+    private bool HatSollreduzierendeAbwesenheit(
         List<Abwesenheit> abwesenheiten,
         int mitarbeiterId,
         DateTime datum)
@@ -333,16 +284,14 @@ public class ArbeitszeitService
             .Where(a => a.MitarbeiterId == mitarbeiterId)
             .ToListAsync();
         var istStunden = BerechneMonatsstunden(alleArbeitszeiten, mitarbeiterId, jahr, monat);
-        var sollStunden = BerechneMonatssoll(jahr, monat, wochenarbeitszeit, aktuellesDatum);
-        var abwesenheitsstunden = BerechneAnrechenbareAbwesenheitsstunden(
-            alleArbeitszeiten,
-            alleAbwesenheiten,
-            mitarbeiterId,
+        var sollStunden = BerechneMonatssoll(
             jahr,
             monat,
             wochenarbeitszeit,
-            aktuellesDatum);
-        var saldo = BerechneSaldo(istStunden, abwesenheitsstunden, sollStunden);
+            aktuellesDatum,
+            alleAbwesenheiten,
+            mitarbeiterId);
+        var saldo = BerechneSaldo(istStunden, sollStunden);
 
         return (istStunden, sollStunden, saldo);
     }

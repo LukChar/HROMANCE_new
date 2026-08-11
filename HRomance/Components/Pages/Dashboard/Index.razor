@@ -45,13 +45,6 @@
                         <span>Arbeitszeit</span>
                         <strong>@StundenAnzeigen(MonatsIst()) h</strong>
                     </div>
-                    @if (MonatsAbwesenheit() > 0)
-                    {
-                        <div class="working-time-row">
-                            <span>Abwesenheit</span>
-                            <strong>@StundenAnzeigen(MonatsAbwesenheit()) h</strong>
-                        </div>
-                    }
                     <div class="working-time-row">
                         <span>Soll</span>
                         <strong>@StundenAnzeigen(MonatsSoll()) h</strong>
@@ -267,34 +260,15 @@
         return ArbeitszeitService.BerechneMonatssoll(
             DateTime.Today.Year,
             DateTime.Today.Month,
-            person.Wochenarbeitszeit);
+            person.Wochenarbeitszeit,
+            DateTime.Today,
+            abwesenheiten,
+            person.Id);
     }
 
     private double MonatsSaldo()
     {
-        return ArbeitszeitService.BerechneSaldo(
-            MonatsIst(),
-            MonatsAbwesenheit(),
-            MonatsSoll());
-    }
-
-    private double MonatsAbwesenheit()
-    {
-        var person = AusgewaehlterMitarbeiter();
-
-        if (person == null)
-        {
-            return 0;
-        }
-
-        return ArbeitszeitService.BerechneAnrechenbareAbwesenheitsstunden(
-            arbeitszeiten,
-            abwesenheiten,
-            person.Id,
-            DateTime.Today.Year,
-            DateTime.Today.Month,
-            person.Wochenarbeitszeit,
-            DateTime.Today);
+        return ArbeitszeitService.BerechneSaldo(MonatsIst(), MonatsSoll());
     }
 
     private string StundenAnzeigen(double stunden)
