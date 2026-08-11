@@ -128,6 +128,18 @@ public class AbwesenheitService
         return mitarbeiterId == 0 || abwesenheit.MitarbeiterId == mitarbeiterId;
     }
 
+    public bool IstOffenerAntrag(Abwesenheit abwesenheit)
+    {
+        return abwesenheit.Status == "Offen";
+    }
+
+    public bool IstAbwesendAmTag(Abwesenheit abwesenheit, DateTime datum)
+    {
+        return abwesenheit.Status != "Abgelehnt"
+            && abwesenheit.Von.Date <= datum.Date
+            && abwesenheit.Bis.Date >= datum.Date;
+    }
+
     public async Task DeleteAsync(int id)
     {
         var abwesenheit = await _context.Abwesenheiten.FindAsync(id);

@@ -238,6 +238,17 @@ namespace HRomance.Services
             return false;
         }
 
+        public bool IstBesetzt(Auftrag auftrag)
+        {
+            return auftrag.Mitarbeiter.Count > 0;
+        }
+
+        public bool IstEinsatzAmTag(Auftrag auftrag, DateTime datum)
+        {
+            return auftrag.Startdatum.Date <= datum.Date
+                && auftrag.Enddatum.Date >= datum.Date;
+        }
+
         public List<Mitarbeiter> MitarbeiterSortieren(
             Auftrag auftrag,
             List<Mitarbeiter> mitarbeiter,
