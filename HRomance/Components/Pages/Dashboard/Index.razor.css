@@ -4,7 +4,7 @@
 }
 
 .page-header {
-    margin-bottom: 25px;
+    margin-bottom: 20px;
 }
 
 .page-header h1 {
@@ -22,8 +22,8 @@
 .summary-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 18px;
-    margin-bottom: 24px;
+    gap: 14px;
+    margin-bottom: 18px;
 }
 
 .summary-card,
@@ -35,9 +35,9 @@
 
 .summary-card {
     display: flex;
-    padding: 20px;
+    padding: 15px 16px;
     flex-direction: column;
-    gap: 7px;
+    gap: 4px;
 }
 
 .summary-card span {
@@ -47,7 +47,7 @@
 
 .summary-card strong {
     color: #202124;
-    font-size: 26px;
+    font-size: 24px;
     font-weight: 600;
 }
 
@@ -59,15 +59,31 @@
 .dashboard-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 20px;
+    grid-template-areas:
+        "orders absent"
+        "requests working";
+    align-items: start;
+    gap: 14px;
 }
 
-.wide-section {
-    grid-column: 1 / -1;
+.today-orders {
+    grid-area: orders;
+}
+
+.today-absent {
+    grid-area: absent;
+}
+
+.open-requests {
+    grid-area: requests;
+}
+
+.working-time {
+    grid-area: working;
 }
 
 .section-header {
-    padding: 17px 20px;
+    padding: 13px 16px;
     border-bottom: 1px solid #e2e5e9;
 }
 
@@ -85,7 +101,7 @@
 
 .dashboard-entry {
     display: flex;
-    padding: 14px 20px;
+    padding: 10px 16px;
     flex-direction: column;
     align-items: flex-start;
     gap: 3px;
@@ -95,6 +111,12 @@
     background-color: white;
     font-size: 14px;
     text-align: left;
+}
+
+.compact-entry {
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 12px;
 }
 
 .dashboard-entry:last-child {
@@ -117,14 +139,14 @@
 
 .empty-message {
     margin: 0;
-    padding: 24px 20px;
+    padding: 18px 16px;
     color: #6b7280;
     font-size: 14px;
 }
 
 .section-link {
     display: inline-block;
-    margin: 12px 20px 16px;
+    margin: 10px 16px 13px;
     color: #2563eb;
     font-size: 14px;
     text-decoration: none;
@@ -132,7 +154,7 @@
 
 .working-time-content {
     display: flex;
-    padding: 20px;
+    padding: 15px 16px;
     align-items: center;
     gap: 12px;
 }
@@ -172,13 +194,8 @@
 }
 
 @media (max-width: 900px) {
-    .summary-grid,
-    .dashboard-grid {
+    .summary-grid {
         grid-template-columns: 1fr 1fr;
-    }
-
-    .wide-section {
-        grid-column: 1 / -1;
     }
 }
 
@@ -188,8 +205,12 @@
         grid-template-columns: 1fr;
     }
 
-    .wide-section {
-        grid-column: auto;
+    .dashboard-grid {
+        grid-template-areas:
+            "orders"
+            "absent"
+            "requests"
+            "working";
     }
 
     .working-time-content {
@@ -200,5 +221,15 @@
     .working-time-value {
         margin-left: 0;
         align-items: flex-start;
+    }
+
+    .working-time-content select {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .compact-entry {
+        flex-direction: column;
+        gap: 3px;
     }
 }
