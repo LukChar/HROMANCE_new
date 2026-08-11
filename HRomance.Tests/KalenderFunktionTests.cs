@@ -245,6 +245,101 @@ public class KalenderFunktionTests
         Assert.Null(geladen);
     }
 
+    [Fact]
+    public void MitarbeiterArbeitskopieEnthaeltRichtigeDaten()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var original = NeuerSuchMitarbeiter("Fritz", "Muster", "P-123");
+        original.Id = 8;
+        original.Wochenarbeitszeit = 38.5;
+
+        var kopie = testdatenbank.MitarbeiterService.ErstelleArbeitskopie(original);
+
+        Assert.Equal(8, kopie.Id);
+        Assert.Equal("Fritz", kopie.Vorname);
+        Assert.Equal(38.5, kopie.Wochenarbeitszeit);
+    }
+
+    [Fact]
+    public void AbbrechenMitArbeitskopieLaesstOriginalUnveraendert()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var original = NeuerSuchMitarbeiter("Fritz", "Muster", "P-123");
+        var kopie = testdatenbank.MitarbeiterService.ErstelleArbeitskopie(original);
+
+        kopie.Vorname = "Geändert";
+        kopie.Wochenarbeitszeit = 20;
+
+        Assert.Equal("Fritz", original.Vorname);
+        Assert.Equal(40, original.Wochenarbeitszeit);
+    }
+
+    [Fact]
+    public async Task MitarbeiterAenderungenWerdenErstBeimSpeichernUebernommen()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var original = await testdatenbank.MitarbeiterHinzufuegen();
+        var kopie = testdatenbank.MitarbeiterService.ErstelleArbeitskopie(original);
+        kopie.Vorname = "Geändert";
+
+        await testdatenbank.MitarbeiterService.UpdateAsync(kopie);
+        var gespeichert = await testdatenbank.MitarbeiterService.GetByIdAsync(original.Id);
+
+        Assert.Equal("Geändert", gespeichert?.Vorname);
+    }
+
+    [Fact]
+    public async Task WochenarbeitszeitUndQualifikationWerdenGespeichert()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var original = await testdatenbank.MitarbeiterHinzufuegen();
+        var qualifikation = await testdatenbank.QualifikationHinzufuegen();
+        var kopie = testdatenbank.MitarbeiterService.ErstelleArbeitskopie(original);
+        kopie.Wochenarbeitszeit = 32;
+        kopie.Qualifikationen.Add(qualifikation);
+
+        await testdatenbank.MitarbeiterService.UpdateAsync(kopie);
+        var gespeichert = await testdatenbank.MitarbeiterService.GetByIdAsync(original.Id);
+
+        Assert.Equal(32, gespeichert?.Wochenarbeitszeit);
+        Assert.Single(gespeichert?.Qualifikationen ?? []);
+        Assert.Equal("Elektriker", gespeichert?.Qualifikationen[0].Name);
+    }
+
+    [Fact]
+    public void TageslisteHatVollstaendigeArbeitszeitdaten()
+    {
+        var arbeitszeit = NeueArbeitszeit();
+        arbeitszeit.Mitarbeiter = NeuerSuchMitarbeiter("Fritz", "Muster", "P-123");
+
+        Assert.Equal("Fritz", arbeitszeit.Mitarbeiter.Vorname);
+        Assert.Equal(new TimeOnly(8, 15), arbeitszeit.Beginn);
+        Assert.Equal(new TimeOnly(16, 45), arbeitszeit.Ende);
+    }
+
+    [Fact]
+    public void TageslisteHatTypUndStatusDerAbwesenheit()
+    {
+        var abwesenheit = new Abwesenheit { Typ = "Urlaub", Status = "Genehmigt" };
+
+        Assert.Equal("Urlaub", abwesenheit.Typ);
+        Assert.Equal("Genehmigt", abwesenheit.Status);
+    }
+
+    [Fact]
+    public void TageslisteHatKundeUndStatusDesAuftrags()
+    {
+        var auftrag = new Auftrag
+        {
+            Titel = "Montage",
+            Kunde = new Kunde { Firmenname = "SAACKE" },
+            Besetzt = true
+        };
+
+        Assert.Equal("SAACKE", auftrag.Kunde.Firmenname);
+        Assert.True(auftrag.Besetzt);
+    }
+
     private static Arbeitszeit NeueArbeitszeit()
     {
         return new Arbeitszeit
@@ -336,6 +431,14 @@ public class KalenderFunktionTests
             context.Mitarbeiter.Add(mitarbeiter);
             await context.SaveChangesAsync();
             return mitarbeiter;
+        }
+
+        public async Task<Qualifikation> QualifikationHinzufuegen()
+        {
+            var qualifikation = new Qualifikation { Name = "Elektriker" };
+            context.Qualifikationen.Add(qualifikation);
+            await context.SaveChangesAsync();
+            return qualifikation;
         }
 
         private static Mitarbeiter NeuerMitarbeiter(string nummer)

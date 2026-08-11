@@ -598,9 +598,13 @@ textarea.form-input {
 }
 
 .entry-popup {
+    box-sizing: border-box;
+    display: flex;
     width: 100%;
     max-width: 620px;
+    max-height: 80vh;
     padding: 22px;
+    flex-direction: column;
     border: 1px solid #d7dbe0;
     border-radius: 8px;
     background-color: white;
@@ -633,7 +637,7 @@ textarea.form-input {
 
 .day-popup-list {
     display: grid;
-    max-height: 430px;
+    min-height: 0;
     overflow-y: auto;
     gap: 8px;
 }
@@ -642,6 +646,7 @@ textarea.form-input {
     display: flex;
     width: 100%;
     min-height: auto;
+    height: auto;
     padding: 10px 12px;
     flex-direction: column;
     align-items: flex-start;
@@ -652,6 +657,8 @@ textarea.form-input {
     background-color: #f8f9fa;
     font-size: 14px;
     text-align: left;
+    line-height: 1.4;
+    white-space: normal;
 }
 
 .day-popup-entry.work-entry {
@@ -660,6 +667,8 @@ textarea.form-input {
 }
 
 .day-popup-entry.absence-entry {
+    height: auto;
+    min-height: auto;
     margin: 0;
     border-color: #ddd6fe;
     background-color: #f5f3ff;

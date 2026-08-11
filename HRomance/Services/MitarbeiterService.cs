@@ -71,6 +71,23 @@ namespace HRomance.Services
             return false;
         }
 
+        public Mitarbeiter ErstelleArbeitskopie(Mitarbeiter mitarbeiter)
+        {
+            return new Mitarbeiter
+            {
+                Id = mitarbeiter.Id,
+                Personalnummer = mitarbeiter.Personalnummer,
+                Vorname = mitarbeiter.Vorname,
+                Nachname = mitarbeiter.Nachname,
+                Email = mitarbeiter.Email,
+                Telefon = mitarbeiter.Telefon,
+                Qualifikation = mitarbeiter.Qualifikation,
+                Verfuegbar = mitarbeiter.Verfuegbar,
+                SollStundenProTag = mitarbeiter.SollStundenProTag,
+                Wochenarbeitszeit = mitarbeiter.Wochenarbeitszeit
+            };
+        }
+
         // Neuen Mitarbeiter hinzufügen
         public async Task AddAsync(Mitarbeiter mitarbeiter)
         {

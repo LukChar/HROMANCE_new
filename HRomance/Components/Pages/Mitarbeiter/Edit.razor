@@ -152,19 +152,7 @@
 
         if (geladenerMitarbeiter != null)
         {
-            mitarbeiter = new Mitarbeiter
-            {
-                Id = geladenerMitarbeiter.Id,
-                Personalnummer = geladenerMitarbeiter.Personalnummer,
-                Vorname = geladenerMitarbeiter.Vorname,
-                Nachname = geladenerMitarbeiter.Nachname,
-                Email = geladenerMitarbeiter.Email,
-                Telefon = geladenerMitarbeiter.Telefon,
-                Qualifikation = geladenerMitarbeiter.Qualifikation,
-                Verfuegbar = geladenerMitarbeiter.Verfuegbar,
-                SollStundenProTag = geladenerMitarbeiter.SollStundenProTag,
-                Wochenarbeitszeit = geladenerMitarbeiter.Wochenarbeitszeit
-            };
+            mitarbeiter = MitarbeiterService.ErstelleArbeitskopie(geladenerMitarbeiter);
 
             foreach (var qualifikation in geladenerMitarbeiter.Qualifikationen)
             {
