@@ -314,12 +314,22 @@
 
                             <div class="form-group">
                                 <label>Beginn</label>
-                                <InputDate class="form-input" Type="InputDateType.Time" lang="de" @bind-Value="bearbeiteteArbeitszeit.Beginn" />
+                                <input class="form-input" type="text" placeholder="HH:mm"
+                                       @bind="beginnText" @bind:event="oninput" />
+                                @if (beginnFehler != string.Empty)
+                                {
+                                    <span class="form-error">@beginnFehler</span>
+                                }
                             </div>
 
                             <div class="form-group">
                                 <label>Ende</label>
-                                <InputDate class="form-input" Type="InputDateType.Time" lang="de" @bind-Value="bearbeiteteArbeitszeit.Ende" />
+                                <input class="form-input" type="text" placeholder="HH:mm"
+                                       @bind="endeText" @bind:event="oninput" />
+                                @if (endeFehler != string.Empty)
+                                {
+                                    <span class="form-error">@endeFehler</span>
+                                }
                             </div>
 
                             <div class="form-group">
@@ -465,12 +475,22 @@
 
                                 <div class="form-group">
                                     <label>Beginn</label>
-                                    <InputDate class="form-input" Type="InputDateType.Time" lang="de" @bind-Value="neueArbeitszeit.Beginn" />
+                                    <input class="form-input" type="text" placeholder="HH:mm"
+                                           @bind="beginnText" @bind:event="oninput" />
+                                    @if (beginnFehler != string.Empty)
+                                    {
+                                        <span class="form-error">@beginnFehler</span>
+                                    }
                                 </div>
 
                                 <div class="form-group">
                                     <label>Ende</label>
-                                    <InputDate class="form-input" Type="InputDateType.Time" lang="de" @bind-Value="neueArbeitszeit.Ende" />
+                                    <input class="form-input" type="text" placeholder="HH:mm"
+                                           @bind="endeText" @bind:event="oninput" />
+                                    @if (endeFehler != string.Empty)
+                                    {
+                                        <span class="form-error">@endeFehler</span>
+                                    }
                                 </div>
 
                                 <div class="form-group">
@@ -689,6 +709,10 @@
     private Arbeitszeit bearbeiteteArbeitszeit = new();
     private Abwesenheit bearbeiteteAbwesenheit = new();
     private string formularFehler = string.Empty;
+    private string beginnText = string.Empty;
+    private string endeText = string.Empty;
+    private string beginnFehler = string.Empty;
+    private string endeFehler = string.Empty;
     private bool popupSichtbar;
     private string popupArt = string.Empty;
     private Auftrag? popupAuftrag;
@@ -778,6 +802,8 @@
                 Beginn = new TimeOnly(8, 0),
                 Ende = new TimeOnly(16, 0)
             };
+
+            ZeittexteSetzen(neueArbeitszeit);
         }
         else
         {
@@ -793,6 +819,11 @@
 
     private async Task ArbeitszeitSpeichern()
     {
+        if (!ZeittexteUebernehmen(neueArbeitszeit))
+        {
+            return;
+        }
+
         formularFehler = ArbeitszeitService.Validierungsfehler(neueArbeitszeit);
 
         if (formularFehler != string.Empty)
@@ -831,6 +862,7 @@
     private void ArbeitszeitBearbeiten(Arbeitszeit arbeitszeit)
     {
         bearbeiteteArbeitszeit = ArbeitszeitService.ErstelleArbeitskopie(arbeitszeit);
+        ZeittexteSetzen(bearbeiteteArbeitszeit);
 
         formularFehler = string.Empty;
         popupArt = "ArbeitszeitBearbeiten";
@@ -839,6 +871,11 @@
 
     private async Task ArbeitszeitAenderungenSpeichern()
     {
+        if (!ZeittexteUebernehmen(bearbeiteteArbeitszeit))
+        {
+            return;
+        }
+
         formularFehler = ArbeitszeitService.Validierungsfehler(bearbeiteteArbeitszeit);
 
         if (formularFehler != string.Empty)
@@ -909,6 +946,7 @@
         formularFehler = string.Empty;
         bearbeiteteArbeitszeit = new Arbeitszeit();
         bearbeiteteAbwesenheit = new Abwesenheit();
+        ZeittexteZuruecksetzen();
         PopupSchliessen();
     }
 
@@ -982,6 +1020,51 @@
         neueAbwesenheit = new Abwesenheit();
         bearbeiteteArbeitszeit = new Arbeitszeit();
         bearbeiteteAbwesenheit = new Abwesenheit();
+        ZeittexteZuruecksetzen();
+    }
+
+    private void ZeittexteSetzen(Arbeitszeit arbeitszeit)
+    {
+        beginnText = ArbeitszeitService.ZeitAnzeigen(arbeitszeit.Beginn);
+        endeText = ArbeitszeitService.ZeitAnzeigen(arbeitszeit.Ende);
+        beginnFehler = string.Empty;
+        endeFehler = string.Empty;
+    }
+
+    private bool ZeittexteUebernehmen(Arbeitszeit arbeitszeit)
+    {
+        beginnFehler = string.Empty;
+        endeFehler = string.Empty;
+
+        var beginnIstGueltig = ArbeitszeitService.TryParseZeit(beginnText, out var beginn);
+        var endeIstGueltig = ArbeitszeitService.TryParseZeit(endeText, out var ende);
+
+        if (!beginnIstGueltig)
+        {
+            beginnFehler = "Bitte Uhrzeit im Format HH:mm eingeben.";
+        }
+
+        if (!endeIstGueltig)
+        {
+            endeFehler = "Bitte Uhrzeit im Format HH:mm eingeben.";
+        }
+
+        if (!beginnIstGueltig || !endeIstGueltig)
+        {
+            return false;
+        }
+
+        arbeitszeit.Beginn = beginn;
+        arbeitszeit.Ende = ende;
+        return true;
+    }
+
+    private void ZeittexteZuruecksetzen()
+    {
+        beginnText = string.Empty;
+        endeText = string.Empty;
+        beginnFehler = string.Empty;
+        endeFehler = string.Empty;
     }
 
     private void ArbeitszeitAusPopupBearbeiten()

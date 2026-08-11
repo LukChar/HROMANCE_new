@@ -43,6 +43,57 @@ public class ArbeitszeitServiceTests
         Assert.DoesNotContain("PM", anzeige);
     }
 
+    [Theory]
+    [InlineData("08:00", 8, 0)]
+    [InlineData("16:00", 16, 0)]
+    [InlineData("23:59", 23, 59)]
+    public void GueltigeZeittexteWerdenGelesen(string text, int stunde, int minute)
+    {
+        using var testdatenbank = new Testdatenbank();
+
+        var istGueltig = testdatenbank.Service.TryParseZeit(text, out var zeit);
+
+        Assert.True(istGueltig);
+        Assert.Equal(new TimeOnly(stunde, minute), zeit);
+    }
+
+    [Theory]
+    [InlineData("8:00 AM")]
+    [InlineData("04:00 PM")]
+    [InlineData("25:00")]
+    [InlineData("12:70")]
+    [InlineData("8")]
+    [InlineData("16")]
+    public void UngueltigeZeittexteWerdenAbgelehnt(string text)
+    {
+        using var testdatenbank = new Testdatenbank();
+
+        var istGueltig = testdatenbank.Service.TryParseZeit(text, out _);
+
+        Assert.False(istGueltig);
+    }
+
+    [Fact]
+    public void BestehendeZeitWirdAlsFormulartextAngezeigt()
+    {
+        using var testdatenbank = new Testdatenbank();
+
+        var text = testdatenbank.Service.ZeitAnzeigen(new TimeOnly(16, 0));
+
+        Assert.Equal("16:00", text);
+    }
+
+    [Fact]
+    public void FormulartextWirdZurBestehendenZeitZurueckgewandelt()
+    {
+        using var testdatenbank = new Testdatenbank();
+
+        var istGueltig = testdatenbank.Service.TryParseZeit("16:30", out var zeit);
+
+        Assert.True(istGueltig);
+        Assert.Equal(new TimeOnly(16, 30), zeit);
+    }
+
     [Fact]
     public void AchtBisSechzehnDreissigMitPauseErgibtAchtStunden()
     {

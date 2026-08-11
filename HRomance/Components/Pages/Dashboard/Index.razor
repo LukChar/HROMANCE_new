@@ -285,12 +285,22 @@
 
                     <div class="form-group">
                         <label>Beginn</label>
-                        <InputDate class="form-input" Type="InputDateType.Time" lang="de" @bind-Value="neueArbeitszeit.Beginn" />
+                        <input class="form-input" type="text" placeholder="HH:mm"
+                               @bind="beginnText" @bind:event="oninput" />
+                        @if (beginnFehler != string.Empty)
+                        {
+                            <span class="form-error">@beginnFehler</span>
+                        }
                     </div>
 
                     <div class="form-group">
                         <label>Ende</label>
-                        <InputDate class="form-input" Type="InputDateType.Time" lang="de" @bind-Value="neueArbeitszeit.Ende" />
+                        <input class="form-input" type="text" placeholder="HH:mm"
+                               @bind="endeText" @bind:event="oninput" />
+                        @if (endeFehler != string.Empty)
+                        {
+                            <span class="form-error">@endeFehler</span>
+                        }
                     </div>
 
                     <div class="form-group">
@@ -336,6 +346,10 @@
     private bool arbeitszeitPopupSichtbar;
     private Arbeitszeit neueArbeitszeit = new();
     private string arbeitszeitFehler = string.Empty;
+    private string beginnText = string.Empty;
+    private string endeText = string.Empty;
+    private string beginnFehler = string.Empty;
+    private string endeFehler = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -581,6 +595,10 @@
             Ende = new TimeOnly(16, 0)
         };
 
+        beginnText = ArbeitszeitService.ZeitAnzeigen(neueArbeitszeit.Beginn);
+        endeText = ArbeitszeitService.ZeitAnzeigen(neueArbeitszeit.Ende);
+        beginnFehler = string.Empty;
+        endeFehler = string.Empty;
         arbeitszeitFehler = string.Empty;
         arbeitszeitPopupSichtbar = true;
     }
@@ -589,11 +607,38 @@
     {
         arbeitszeitPopupSichtbar = false;
         arbeitszeitFehler = string.Empty;
+        beginnText = string.Empty;
+        endeText = string.Empty;
+        beginnFehler = string.Empty;
+        endeFehler = string.Empty;
         neueArbeitszeit = new Arbeitszeit();
     }
 
     private async Task ArbeitszeitSpeichern()
     {
+        beginnFehler = string.Empty;
+        endeFehler = string.Empty;
+
+        var beginnIstGueltig = ArbeitszeitService.TryParseZeit(beginnText, out var beginn);
+        var endeIstGueltig = ArbeitszeitService.TryParseZeit(endeText, out var ende);
+
+        if (!beginnIstGueltig)
+        {
+            beginnFehler = "Bitte Uhrzeit im Format HH:mm eingeben.";
+        }
+
+        if (!endeIstGueltig)
+        {
+            endeFehler = "Bitte Uhrzeit im Format HH:mm eingeben.";
+        }
+
+        if (!beginnIstGueltig || !endeIstGueltig)
+        {
+            return;
+        }
+
+        neueArbeitszeit.Beginn = beginn;
+        neueArbeitszeit.Ende = ende;
         arbeitszeitFehler = ArbeitszeitService.Validierungsfehler(neueArbeitszeit);
 
         if (arbeitszeitFehler != string.Empty)

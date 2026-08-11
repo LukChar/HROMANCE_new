@@ -1,6 +1,7 @@
 using HRomance.Data;
 using HRomance.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 
 namespace HRomance.Services;
 
@@ -120,6 +121,16 @@ public class ArbeitszeitService
     public string ZeitraumAnzeigen(TimeOnly beginn, TimeOnly ende)
     {
         return ZeitAnzeigen(beginn) + " - " + ZeitAnzeigen(ende);
+    }
+
+    public bool TryParseZeit(string text, out TimeOnly zeit)
+    {
+        return TimeOnly.TryParseExact(
+            text,
+            "HH:mm",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out zeit);
     }
 
     public double BerechneMonatsstunden(
