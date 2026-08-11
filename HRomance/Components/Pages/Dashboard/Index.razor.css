@@ -26,6 +26,10 @@
     margin-bottom: 18px;
 }
 
+.working-time-overview {
+    margin-bottom: 18px;
+}
+
 .summary-card,
 .dashboard-section {
     border: 1px solid #e2e5e9;
@@ -61,7 +65,7 @@
     grid-template-columns: 1fr 1fr;
     grid-template-areas:
         "orders absent"
-        "requests working";
+        "requests requests";
     align-items: start;
     gap: 14px;
 }
@@ -76,10 +80,6 @@
 
 .open-requests {
     grid-area: requests;
-}
-
-.working-time {
-    grid-area: working;
 }
 
 .section-header {
@@ -156,7 +156,13 @@
     display: flex;
     padding: 15px 16px;
     align-items: center;
-    gap: 12px;
+    gap: 24px;
+}
+
+.employee-selection {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
 .working-time-content label {
@@ -179,7 +185,7 @@
     display: flex;
     margin-left: auto;
     flex-direction: column;
-    min-width: 190px;
+    min-width: 220px;
     gap: 4px;
 }
 
@@ -227,8 +233,7 @@
         grid-template-areas:
             "orders"
             "absent"
-            "requests"
-            "working";
+            "requests";
     }
 
     .working-time-content {
@@ -238,7 +243,7 @@
 
     .working-time-value {
         margin-left: 0;
-        align-items: flex-start;
+        min-width: 0;
     }
 
     .working-time-content select {

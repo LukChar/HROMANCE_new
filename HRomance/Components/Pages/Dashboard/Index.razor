@@ -19,6 +19,45 @@
         <p>Übersicht über Mitarbeiter, Aufträge, Anträge und Arbeitszeiten</p>
     </div>
 
+    <section class="dashboard-section working-time-overview">
+        <div class="section-header">
+            <h2>Arbeitszeit</h2>
+        </div>
+
+        <div class="working-time-content">
+            <div class="employee-selection">
+                <label for="dashboard-mitarbeiter">Mitarbeiter</label>
+                <select id="dashboard-mitarbeiter" value="@ausgewaehlterMitarbeiterId" @onchange="MitarbeiterGeaendert">
+                    <option value="0">Bitte auswählen</option>
+                    @foreach (var person in mitarbeiter)
+                    {
+                        <option value="@person.Id">@person.Vorname @person.Nachname</option>
+                    }
+                </select>
+            </div>
+
+            @if (ausgewaehlterMitarbeiterId != 0)
+            {
+                <div class="working-time-value">
+                    <strong>@AusgewaehlterMitarbeiterName()</strong>
+                    <span>@AktuellerMonat()</span>
+                    <div class="working-time-row">
+                        <span>Ist</span>
+                        <strong>@StundenAnzeigen(MonatsIst()) h</strong>
+                    </div>
+                    <div class="working-time-row">
+                        <span>Soll</span>
+                        <strong>@StundenAnzeigen(MonatsSoll()) h</strong>
+                    </div>
+                    <div class="working-time-row @SaldoKlasse()">
+                        <span>Saldo</span>
+                        <strong>@SaldoAnzeigen() h</strong>
+                    </div>
+                </div>
+            }
+        </div>
+    </section>
+
     <div class="summary-grid">
         <div class="summary-card">
             <span>Mitarbeiter</span>
@@ -59,8 +98,9 @@
                     {
                         <button type="button" class="dashboard-entry order-entry" @onclick="() => AuftragOeffnen(auftrag)">
                             <strong>@auftrag.Titel</strong>
-                            <span>@(auftrag.Kunde?.Firmenname ?? "Kein Kunde") · @MitarbeiterNamen(auftrag)</span>
-                            <small>@auftrag.Einsatzort · @(AuftragService.IstBesetzt(auftrag) ? "Besetzt" : "Offen")</small>
+                            <span>@(auftrag.Kunde?.Firmenname ?? "Kein Kunde")</span>
+                            <span>Mitarbeiter: @MitarbeiterNamen(auftrag)</span>
+                            <small>@(AuftragService.IstBesetzt(auftrag) ? "Besetzt" : "Offen")</small>
                         </button>
                     }
                 </div>
@@ -119,42 +159,6 @@
             }
         </section>
 
-        <section class="dashboard-section working-time">
-            <div class="section-header">
-                <h2>Arbeitszeit</h2>
-            </div>
-
-            <div class="working-time-content">
-                <label for="dashboard-mitarbeiter">Mitarbeiter</label>
-                <select id="dashboard-mitarbeiter" value="@ausgewaehlterMitarbeiterId" @onchange="MitarbeiterGeaendert">
-                    <option value="0">Bitte auswählen</option>
-                    @foreach (var person in mitarbeiter)
-                    {
-                        <option value="@person.Id">@person.Vorname @person.Nachname</option>
-                    }
-                </select>
-
-                @if (ausgewaehlterMitarbeiterId != 0)
-                {
-                    <div class="working-time-value">
-                        <strong>@AusgewaehlterMitarbeiterName()</strong>
-                        <span>@AktuellerMonat()</span>
-                        <div class="working-time-row">
-                            <span>Ist</span>
-                            <strong>@StundenAnzeigen(MonatsIst()) h</strong>
-                        </div>
-                        <div class="working-time-row">
-                            <span>Soll</span>
-                            <strong>@StundenAnzeigen(MonatsSoll()) h</strong>
-                        </div>
-                        <div class="working-time-row @SaldoKlasse()">
-                            <span>Saldo</span>
-                            <strong>@SaldoAnzeigen() h</strong>
-                        </div>
-                    </div>
-                }
-            </div>
-        </section>
     </div>
 </div>
 

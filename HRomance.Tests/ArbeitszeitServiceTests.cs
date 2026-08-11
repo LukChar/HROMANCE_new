@@ -140,11 +140,12 @@ public class ArbeitszeitServiceTests
         await testdatenbank.ArbeitszeitHinzufuegen(mitarbeiter.Id, 11, 8, 0, 16, 30, 0);
         await testdatenbank.ArbeitszeitHinzufuegen(mitarbeiter.Id, 12, 8, 0, 15, 0, 0);
 
-        var werte = await testdatenbank.Service.GetMonatswerteAsync(mitarbeiter.Id, 2026, 8, 40);
+        var werte = await testdatenbank.Service.GetMonatswerteAsync(
+            mitarbeiter.Id, 2026, 8, 40, new DateTime(2026, 8, 11));
 
         Assert.Equal(15.5, werte.Ist);
-        Assert.Equal(168, werte.Soll);
-        Assert.Equal(-152.5, werte.Saldo);
+        Assert.Equal(56, werte.Soll);
+        Assert.Equal(-40.5, werte.Saldo);
     }
 
     [Fact]
@@ -194,7 +195,7 @@ public class ArbeitszeitServiceTests
     }
 
     [Fact]
-    public async Task MonatssollBeruecksichtigtAlleWerktage()
+    public async Task MonatssollDesAktuellenMonatsEndetHeute()
     {
         using var testdatenbank = new Testdatenbank();
         var mitarbeiter = await testdatenbank.MitarbeiterHinzufuegen();
@@ -202,9 +203,10 @@ public class ArbeitszeitServiceTests
         await testdatenbank.ArbeitszeitHinzufuegen(mitarbeiter.Id, 11, 13, 0, 17, 0, 0);
         await testdatenbank.ArbeitszeitHinzufuegen(mitarbeiter.Id, 12, 8, 0, 16, 0, 0);
 
-        var werte = await testdatenbank.Service.GetMonatswerteAsync(mitarbeiter.Id, 2026, 8, 40);
+        var werte = await testdatenbank.Service.GetMonatswerteAsync(
+            mitarbeiter.Id, 2026, 8, 40, new DateTime(2026, 8, 11));
 
-        Assert.Equal(168, werte.Soll);
+        Assert.Equal(56, werte.Soll);
     }
 
     [Fact]
@@ -232,9 +234,86 @@ public class ArbeitszeitServiceTests
     {
         using var testdatenbank = new Testdatenbank();
 
-        var sollstunden = testdatenbank.Service.BerechneMonatssoll(2026, 2, 40);
+        var sollstunden = testdatenbank.Service.BerechneMonatssoll(
+            2026, 2, 40, new DateTime(2026, 3, 1));
 
         Assert.Equal(160, sollstunden);
+    }
+
+    [Fact]
+    public void AktuellerMonatZaehltArbeitstageNurBisHeute()
+    {
+        using var testdatenbank = new Testdatenbank();
+
+        var sollstunden = testdatenbank.Service.BerechneMonatssoll(
+            2026, 8, 40, new DateTime(2026, 8, 11));
+
+        Assert.Equal(56, sollstunden);
+    }
+
+    [Fact]
+    public void SpaetereArbeitstageDesAktuellenMonatsWerdenNichtGezaehlt()
+    {
+        using var testdatenbank = new Testdatenbank();
+
+        var sollstunden = testdatenbank.Service.BerechneMonatssoll(
+            2026, 8, 40, new DateTime(2026, 8, 11));
+
+        Assert.NotEqual(168, sollstunden);
+        Assert.Equal(56, sollstunden);
+    }
+
+    [Fact]
+    public void SamstagUndSonntagWerdenNichtGezaehlt()
+    {
+        using var testdatenbank = new Testdatenbank();
+
+        var sollstunden = testdatenbank.Service.BerechneMonatssoll(
+            2026, 8, 40, new DateTime(2026, 8, 9));
+
+        Assert.Equal(40, sollstunden);
+    }
+
+    [Fact]
+    public void VergangenerMonatWirdVollstaendigBerechnet()
+    {
+        using var testdatenbank = new Testdatenbank();
+
+        var sollstunden = testdatenbank.Service.BerechneMonatssoll(
+            2026, 7, 40, new DateTime(2026, 8, 11));
+
+        Assert.Equal(184, sollstunden);
+    }
+
+    [Fact]
+    public void ZukuenftigerMonatHatKeineSollstunden()
+    {
+        using var testdatenbank = new Testdatenbank();
+
+        var sollstunden = testdatenbank.Service.BerechneMonatssoll(
+            2026, 9, 40, new DateTime(2026, 8, 11));
+
+        Assert.Equal(0, sollstunden);
+    }
+
+    [Fact]
+    public void VierzigIststundenUndAchtundvierzigSollstundenErgebenMinusAcht()
+    {
+        using var testdatenbank = new Testdatenbank();
+
+        var saldo = testdatenbank.Service.BerechneSaldo(40, 48);
+
+        Assert.Equal(-8, saldo);
+    }
+
+    [Fact]
+    public void ZweiundfuenfzigIststundenUndAchtundvierzigSollstundenErgebenPlusVier()
+    {
+        using var testdatenbank = new Testdatenbank();
+
+        var saldo = testdatenbank.Service.BerechneSaldo(52, 48);
+
+        Assert.Equal(4, saldo);
     }
 
     [Fact]

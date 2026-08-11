@@ -171,19 +171,43 @@ public class ArbeitszeitService
 
     public double BerechneMonatssoll(int jahr, int monat, double wochenarbeitszeit)
     {
+        return BerechneMonatssoll(jahr, monat, wochenarbeitszeit, DateTime.Today);
+    }
+
+    public double BerechneMonatssoll(
+        int jahr,
+        int monat,
+        double wochenarbeitszeit,
+        DateTime aktuellesDatum)
+    {
         var sollstunden = 0.0;
         var sollstundenProTag = BerechneSollstundenProTag(wochenarbeitszeit);
-        var tageImMonat = DateTime.DaysInMonth(jahr, monat);
+        var ersterTag = new DateTime(jahr, monat, 1);
+        var aktuellerMonat = new DateTime(aktuellesDatum.Year, aktuellesDatum.Month, 1);
 
-        for (var tag = 1; tag <= tageImMonat; tag++)
+        if (ersterTag > aktuellerMonat)
         {
-            var datum = new DateTime(jahr, monat, tag);
+            return 0;
+        }
 
-            if (datum.DayOfWeek != DayOfWeek.Saturday
-                && datum.DayOfWeek != DayOfWeek.Sunday)
+        var letzterTag = new DateTime(jahr, monat, DateTime.DaysInMonth(jahr, monat));
+
+        if (ersterTag == aktuellerMonat)
+        {
+            letzterTag = aktuellesDatum.Date;
+        }
+
+        var tag = ersterTag;
+
+        while (tag <= letzterTag)
+        {
+            if (tag.DayOfWeek != DayOfWeek.Saturday
+                && tag.DayOfWeek != DayOfWeek.Sunday)
             {
                 sollstunden += sollstundenProTag;
             }
+
+            tag = tag.AddDays(1);
         }
 
         return sollstunden;
@@ -200,9 +224,24 @@ public class ArbeitszeitService
         int monat,
         double wochenarbeitszeit)
     {
+        return await GetMonatswerteAsync(
+            mitarbeiterId,
+            jahr,
+            monat,
+            wochenarbeitszeit,
+            DateTime.Today);
+    }
+
+    public async Task<(double Ist, double Soll, double Saldo)> GetMonatswerteAsync(
+        int mitarbeiterId,
+        int jahr,
+        int monat,
+        double wochenarbeitszeit,
+        DateTime aktuellesDatum)
+    {
         var alleArbeitszeiten = await GetByMitarbeiterAsync(mitarbeiterId);
         var istStunden = BerechneMonatsstunden(alleArbeitszeiten, mitarbeiterId, jahr, monat);
-        var sollStunden = BerechneMonatssoll(jahr, monat, wochenarbeitszeit);
+        var sollStunden = BerechneMonatssoll(jahr, monat, wochenarbeitszeit, aktuellesDatum);
         var saldo = BerechneSaldo(istStunden, sollStunden);
 
         return (istStunden, sollStunden, saldo);
