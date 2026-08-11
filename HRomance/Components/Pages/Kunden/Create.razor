@@ -7,64 +7,73 @@
 @inject KundeService KundeService
 @inject NavigationManager Navigation
 
-<PageTitle>Neuer Kunde</PageTitle>
+<PageTitle>Kunde hinzufügen</PageTitle>
 
-<h3>Neuen Kunden anlegen</h3>
+<div class="create-page">
+    <div class="page-header">
+        <div>
+            <h1>Kunde hinzufügen</h1>
+            <p>Neuen Kunden anlegen</p>
+        </div>
 
-<EditForm Model="kunde" OnValidSubmit="Speichern">
-    <DataAnnotationsValidator />
-    <ValidationSummary />
-
-    <div class="mb-3">
-        <label class="form-label">Firmenname</label>
-        <InputText class="form-control"
-                   @bind-Value="kunde.Firmenname" />
+        <a href="/kunden" class="back-button">Zurück</a>
     </div>
 
-    <div class="mb-3">
-        <label class="form-label">Ansprechpartner</label>
-        <InputText class="form-control"
-                   @bind-Value="kunde.Ansprechpartner" />
+    <div class="form-card">
+        <EditForm Model="kunde"
+                  OnValidSubmit="Speichern"
+                  FormName="KundeErstellen">
+            <DataAnnotationsValidator />
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Firmenname</label>
+                    <InputText class="form-input" @bind-Value="kunde.Firmenname" />
+                    <ValidationMessage For="@(() => kunde.Firmenname)" />
+                </div>
+
+                <div class="form-group">
+                    <label>Ansprechpartner</label>
+                    <InputText class="form-input" @bind-Value="kunde.Ansprechpartner" />
+                </div>
+
+                <div class="form-group">
+                    <label>E-Mail</label>
+                    <InputText class="form-input" @bind-Value="kunde.Email" />
+                </div>
+
+                <div class="form-group">
+                    <label>Telefon</label>
+                    <InputText class="form-input" @bind-Value="kunde.Telefon" />
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="button"
+                        class="cancel-button"
+                        @onclick="Abbrechen">
+                    Abbrechen
+                </button>
+
+                <button type="submit" class="save-button">
+                    Speichern
+                </button>
+            </div>
+        </EditForm>
     </div>
-
-    <div class="mb-3">
-        <label class="form-label">E-Mail</label>
-        <InputText class="form-control"
-                   @bind-Value="kunde.Email" />
-    </div>
-
-    <div class="mb-3">
-        <label class="form-label">Telefon</label>
-        <InputText class="form-control"
-                   @bind-Value="kunde.Telefon" />
-    </div>
-
-    <button type="submit" class="btn btn-success me-2">
-        Speichern
-    </button>
-
-    <button type="button"
-            class="btn btn-secondary"
-            @onclick="Zurueck">
-        Abbrechen
-    </button>
-
-</EditForm>
+</div>
 
 @code {
-
-    private Kunde kunde = new();
+    private Kunde kunde = new Kunde();
 
     private async Task Speichern()
     {
         await KundeService.AddAsync(kunde);
-
         Navigation.NavigateTo("/kunden");
     }
 
-    private void Zurueck()
+    private void Abbrechen()
     {
         Navigation.NavigateTo("/kunden");
     }
-
 }

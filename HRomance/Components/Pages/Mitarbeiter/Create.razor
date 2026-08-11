@@ -5,68 +5,201 @@
 @using HRomance.Services
 
 @inject MitarbeiterService MitarbeiterService
-@inject NavigationManager Navigation
+@inject QualifikationService QualifikationService
+@inject NavigationManager NavigationManager
 
-<PageTitle>Neuer Mitarbeiter</PageTitle>
+<PageTitle>Mitarbeiter hinzufügen</PageTitle>
 
-<h3>Neuen Mitarbeiter anlegen</h3>
+<div class="create-page">
 
-<EditForm Model="mitarbeiter" OnValidSubmit="Speichern">
-    <DataAnnotationsValidator />
-    <ValidationSummary />
+    <div class="page-header">
+        <div>
+            <h1>Mitarbeiter hinzufügen</h1>
+            <p>Neuen Mitarbeiter anlegen</p>
+        </div>
 
-    <div class="mb-3">
-        <label class="form-label">Personalnummer</label>
-        <InputText class="form-control" @bind-Value="mitarbeiter.Personalnummer" />
+        <a href="/mitarbeiter" class="back-button">
+            Zurück
+        </a>
     </div>
 
-    <div class="mb-3">
-        <label class="form-label">Vorname</label>
-        <InputText class="form-control" @bind-Value="mitarbeiter.Vorname" />
+    <div class="form-card">
+
+        <EditForm Model="@mitarbeiter"
+                  OnValidSubmit="@Speichern"
+                  FormName="MitarbeiterErstellen">
+            <DataAnnotationsValidator />
+
+            <div class="form-grid">
+
+                <div class="form-group">
+                    <label>Personalnummer</label>
+                    <InputText class="form-input" @bind-Value="mitarbeiter.Personalnummer" />
+                    <ValidationMessage For="@(() => mitarbeiter.Personalnummer)" />
+                </div>
+
+                <div class="form-group">
+                    <label>Vorname</label>
+                    <InputText class="form-input" @bind-Value="mitarbeiter.Vorname" />
+                    <ValidationMessage For="@(() => mitarbeiter.Vorname)" />
+                </div>
+
+                <div class="form-group">
+                    <label>Nachname</label>
+                    <InputText class="form-input" @bind-Value="mitarbeiter.Nachname" />
+                    <ValidationMessage For="@(() => mitarbeiter.Nachname)" />
+                </div>
+
+                <div class="form-group">
+                    <label>E-Mail</label>
+                    <InputText class="form-input" @bind-Value="mitarbeiter.Email" />
+                </div>
+
+                <div class="form-group">
+                    <label>Telefon</label>
+                    <InputText class="form-input" @bind-Value="mitarbeiter.Telefon" />
+                </div>
+
+                <div class="form-group">
+                    <label>Sollstunden pro Tag</label>
+                    <InputNumber class="form-input" @bind-Value="mitarbeiter.SollStundenProTag" step="0.5" />
+                    <ValidationMessage For="@(() => mitarbeiter.SollStundenProTag)" />
+                </div>
+
+            </div>
+
+            <div class="qualifikationen-group">
+                <h2>Qualifikationen</h2>
+
+                @if (qualifikationen.Count == 0)
+                {
+                    <p>Es sind noch keine Qualifikationen vorhanden.</p>
+                }
+                else
+                {
+                    <input class="qualification-search"
+                           type="text"
+                           placeholder="Qualifikation suchen..."
+                           value="@qualifikationssuche"
+                           @oninput="SucheGeaendert" />
+
+                    <div class="qualification-list">
+                        @foreach (var qualifikation in qualifikationen)
+                        {
+                            @if (qualifikation.Name.Contains(
+                                qualifikationssuche,
+                                StringComparison.OrdinalIgnoreCase))
+                            {
+                                <label class="qualification-option">
+                                    <input type="checkbox"
+                                           checked="@IstAusgewaehlt(qualifikation.Id)"
+                                           @onchange="() => QualifikationWechseln(qualifikation.Id)" />
+                                    @qualifikation.Name
+                                </label>
+                            }
+                        }
+                    </div>
+
+                    <div class="selected-qualifications">
+                        @if (ausgewaehlteQualifikationIds.Count == 0)
+                        {
+                            <p>Keine Qualifikation ausgewählt.</p>
+                        }
+                        else
+                        {
+                            <strong>Ausgewählt:</strong>
+                            <div>@AusgewaehlteNamen()</div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <div class="checkbox-group">
+                <InputCheckbox @bind-Value="mitarbeiter.Verfuegbar" />
+                <label>Verfügbar</label>
+            </div>
+
+            <div class="form-actions">
+                <a href="/mitarbeiter" class="cancel-button">
+                    Abbrechen
+                </a>
+
+                <button type="submit" class="save-button">
+                    Speichern
+                </button>
+            </div>
+
+        </EditForm>
+
     </div>
 
-    <div class="mb-3">
-        <label class="form-label">Nachname</label>
-        <InputText class="form-control" @bind-Value="mitarbeiter.Nachname" />
-    </div>
-
-    <div class="mb-3">
-        <label class="form-label">Qualifikation</label>
-        <InputText class="form-control" @bind-Value="mitarbeiter.Qualifikation" />
-    </div>
-
-    <div class="form-check mb-3">
-        <InputCheckbox class="form-check-input" @bind-Value="mitarbeiter.Verfuegbar" />
-        <label class="form-check-label">
-            Verfügbar
-        </label>
-    </div>
-
-    <button type="submit" class="btn btn-primary">
-        Speichern
-    </button>
-
-    <button type="button"
-            class="btn btn-secondary ms-2"
-            @onclick="Zurueck">
-        Abbrechen
-    </button>
-
-</EditForm>
+</div>
 
 @code {
+    private Mitarbeiter mitarbeiter = new Mitarbeiter();
+    private List<Qualifikation> qualifikationen = new List<Qualifikation>();
+    private List<int> ausgewaehlteQualifikationIds = new List<int>();
+    private string qualifikationssuche = string.Empty;
 
-    private Mitarbeiter mitarbeiter = new();
+    protected override async Task OnInitializedAsync()
+    {
+        qualifikationen = await QualifikationService.GetAllAsync();
+    }
+
+    private void SucheGeaendert(ChangeEventArgs e)
+    {
+        qualifikationssuche = e.Value?.ToString() ?? string.Empty;
+    }
+
+    private bool IstAusgewaehlt(int id)
+    {
+        return ausgewaehlteQualifikationIds.Contains(id);
+    }
+
+    private void QualifikationWechseln(int id)
+    {
+        if (ausgewaehlteQualifikationIds.Contains(id))
+        {
+            ausgewaehlteQualifikationIds.Remove(id);
+        }
+        else
+        {
+            ausgewaehlteQualifikationIds.Add(id);
+        }
+    }
+
+    private string AusgewaehlteNamen()
+    {
+        string namen = string.Empty;
+
+        foreach (var qualifikation in qualifikationen)
+        {
+            if (IstAusgewaehlt(qualifikation.Id))
+            {
+                if (namen != string.Empty)
+                {
+                    namen += ", ";
+                }
+
+                namen += qualifikation.Name;
+            }
+        }
+
+        return namen;
+    }
 
     private async Task Speichern()
     {
+        foreach (var qualifikation in qualifikationen)
+        {
+            if (ausgewaehlteQualifikationIds.Contains(qualifikation.Id))
+            {
+                mitarbeiter.Qualifikationen.Add(qualifikation);
+            }
+        }
+
         await MitarbeiterService.AddAsync(mitarbeiter);
 
-        Navigation.NavigateTo("/mitarbeiter");
-    }
-
-    private void Zurueck()
-    {
-        Navigation.NavigateTo("/mitarbeiter");
+        NavigationManager.NavigateTo("/mitarbeiter");
     }
 }

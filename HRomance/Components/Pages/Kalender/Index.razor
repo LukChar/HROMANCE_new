@@ -1,0 +1,1245 @@
+@page "/kalender"
+@rendermode InteractiveServer
+
+@using System.Globalization
+@using HRomance.Models
+@using HRomance.Services
+
+@inject AuftragService AuftragService
+@inject MitarbeiterService MitarbeiterService
+@inject ArbeitszeitService ArbeitszeitService
+@inject AbwesenheitService AbwesenheitService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Kalender</PageTitle>
+
+<div class="kalender-page">
+    <div class="page-header">
+        <h1>Kalender</h1>
+        <p>Übersicht über geplante Aufträge</p>
+    </div>
+
+    <div class="employee-filter">
+        <label for="mitarbeitersuche">Mitarbeiter:</label>
+
+        @if (mitarbeitervorschlaegeSichtbar)
+        {
+            <div class="employee-search-backdrop" @onclick="MitarbeitersucheSchliessen"></div>
+        }
+
+        <div class="employee-search" @onclick:stopPropagation="true">
+            <input id="mitarbeitersuche"
+                   type="text"
+                   placeholder="Mitarbeiter suchen..."
+                   value="@mitarbeitersuche"
+                   @onfocus="MitarbeitersucheOeffnen"
+                   @oninput="MitarbeitersucheGeaendert" />
+
+            @if (mitarbeitervorschlaegeSichtbar)
+            {
+                <div class="employee-suggestions">
+                    <button type="button" class="employee-suggestion all-employees" @onclick="AlleMitarbeiterAuswaehlen">
+                        <strong>Alle Mitarbeiter</strong>
+                    </button>
+
+                    @if (GefilterteMitarbeiter().Count == 0)
+                    {
+                        <div class="no-employee-results">Keine Mitarbeiter gefunden.</div>
+                    }
+                    else
+                    {
+                        @foreach (var mitarbeiter in GefilterteMitarbeiter())
+                        {
+                            <button type="button" class="employee-suggestion" @onclick="() => MitarbeiterAuswaehlen(mitarbeiter)">
+                                <strong>@MitarbeiterName(mitarbeiter)</strong>
+                                <span>@mitarbeiter.Personalnummer · @MitarbeiterQualifikationen(mitarbeiter)</span>
+                            </button>
+                        }
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="employee-summary">
+        <strong>@AusgewaehlterMitarbeiterName()</strong>
+        @if (mitarbeiterfilter == 0)
+        {
+            <span>@Monatsname()</span>
+        }
+        else
+        {
+            <span>@Monatsname() · @MonatsstundenAnzeigen() Arbeitsstunden</span>
+        }
+    </div>
+
+    <div class="calendar-card">
+        <div class="month-navigation">
+            <button type="button" class="navigation-button" @onclick="VorherigerMonat">
+                Zurück
+            </button>
+
+            <h2>@Monatsname()</h2>
+
+            <button type="button" class="navigation-button" @onclick="NaechsterMonat">
+                Weiter
+            </button>
+        </div>
+
+        <div class="today-area">
+            <button type="button" class="today-button" @onclick="AktuellerMonat">
+                Heute
+            </button>
+        </div>
+
+        <div class="calendar-container">
+            <div class="calendar-grid">
+                @foreach (var wochentag in wochentage)
+                {
+                    <div class="weekday">@wochentag</div>
+                }
+
+                @for (var feld = 0; feld < AnzahlKalenderfelder(); feld++)
+                {
+                    var tag = feld - ErsterWochentag() + 1;
+
+                    if (tag < 1 || tag > DateTime.DaysInMonth(angezeigterMonat.Year, angezeigterMonat.Month))
+                    {
+                        <div class="day empty-day"></div>
+                    }
+                    else
+                    {
+                        var datum = new DateTime(angezeigterMonat.Year, angezeigterMonat.Month, tag);
+                        var abwesenheitenAmTag = AbwesenheitenAmTag(datum);
+                        var auftraegeAmTag = AuftraegeAmTag(datum);
+                        var arbeitszeitenAmTag = ArbeitszeitenAmTag(datum);
+                        var anzahlEintraege = abwesenheitenAmTag.Count + auftraegeAmTag.Count + arbeitszeitenAmTag.Count;
+                        var angezeigteEintraege = 0;
+
+                        <div class="day @(IstAusgewaehlt(datum) ? "selected-day" : "")"
+                             @onclick="() => TagAuswaehlen(datum)"
+                             @ondblclick="() => EintragAmTagHinzufuegen(datum)">
+                            <div class="day-number">@tag</div>
+
+                            @foreach (var abwesenheit in abwesenheitenAmTag)
+                            {
+                                @if (angezeigteEintraege < 4)
+                                {
+                                    angezeigteEintraege++;
+                                    <div class="calendar-note absence-entry @AbwesenheitsKlasse(abwesenheit, datum)"
+                                         @onclick="() => AbwesenheitPopupOeffnen(abwesenheit)"
+                                         @onclick:stopPropagation="true"
+                                         @ondblclick:stopPropagation="true">
+                                        @if (IstAbwesenheitsSegmentStart(abwesenheit, datum))
+                                        {
+                                            <strong>@MitarbeiterName(abwesenheit.Mitarbeiter) · @abwesenheit.Typ · @abwesenheit.Status</strong>
+                                        }
+                                    </div>
+                                }
+                            }
+
+                            @foreach (var auftrag in auftraegeAmTag)
+                            {
+                                @if (angezeigteEintraege < 4)
+                                {
+                                    angezeigteEintraege++;
+                                    <div class="calendar-entry @(auftrag.Besetzt ? "occupied" : "open")"
+                                         @onclick="() => AuftragPopupOeffnen(auftrag)"
+                                         @onclick:stopPropagation="true"
+                                         @ondblclick:stopPropagation="true">
+                                        <strong>@auftrag.Titel</strong>
+                                        <span>· @(auftrag.Besetzt ? "Besetzt" : "Offen")</span>
+                                    </div>
+                                }
+                            }
+
+                            @foreach (var arbeitszeit in arbeitszeitenAmTag)
+                            {
+                                @if (angezeigteEintraege < 4)
+                                {
+                                    angezeigteEintraege++;
+                                    <div class="calendar-note work-entry"
+                                         @onclick="() => ArbeitszeitPopupOeffnen(arbeitszeit)"
+                                         @onclick:stopPropagation="true"
+                                         @ondblclick:stopPropagation="true">
+                                        <strong>@MitarbeiterName(arbeitszeit.Mitarbeiter)</strong>
+                                        <span>· @arbeitszeit.Beginn.ToString("HH:mm") - @arbeitszeit.Ende.ToString("HH:mm")</span>
+                                    </div>
+                                }
+                            }
+
+                            @if (anzahlEintraege > 4)
+                            {
+                                <button type="button" class="more-entries"
+                                        @onclick="() => TagAuswaehlen(datum)"
+                                        @onclick:stopPropagation="true"
+                                        @ondblclick:stopPropagation="true">
+                                    + @(anzahlEintraege - 4) weitere
+                                </button>
+                            }
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+
+    @if (ausgewaehltesDatum != null)
+    {
+        <div class="day-view">
+            <div class="day-view-header">
+                <div>
+                    <h2>@DatumAnzeigen(ausgewaehltesDatum.Value)</h2>
+                    <p>Einträge an diesem Tag</p>
+                </div>
+
+                <button type="button" class="add-entry-button" @onclick="EintragsauswahlAnzeigen">
+                    Eintrag hinzufügen
+                </button>
+            </div>
+
+            <div class="day-section">
+                <h3>Aufträge</h3>
+
+                @if (AuftraegeAmTag(ausgewaehltesDatum.Value).Count == 0)
+                {
+                    <p class="empty-message">Für diesen Tag sind keine Aufträge vorhanden.</p>
+                }
+                else
+                {
+                    <div class="day-entries">
+                    @foreach (var auftrag in AuftraegeAmTag(ausgewaehltesDatum.Value))
+                    {
+                        <a class="day-entry" href="/auftraege/details/@auftrag.Id">
+                            <strong>@auftrag.Titel</strong>
+                            <span>Kunde: @(auftrag.Kunde?.Firmenname ?? "Kein Kunde")</span>
+                            <span>Zeitraum: @auftrag.Startdatum.ToString("dd.MM.yyyy") bis @auftrag.Enddatum.ToString("dd.MM.yyyy")</span>
+                            <span>Status: @(auftrag.Besetzt ? "Besetzt" : "Offen")</span>
+                        </a>
+                    }
+                    </div>
+                }
+            </div>
+
+            <div class="day-section">
+                <h3>Arbeitszeiten</h3>
+
+                @if (ArbeitszeitenAmTag(ausgewaehltesDatum.Value).Count == 0)
+                {
+                    <p class="empty-message">Für diesen Tag sind keine Arbeitszeiten vorhanden.</p>
+                }
+                else
+                {
+                    <div class="day-entries">
+                        @foreach (var arbeitszeit in ArbeitszeitenAmTag(ausgewaehltesDatum.Value))
+                        {
+                            <div class="day-entry">
+                                <strong>@MitarbeiterName(arbeitszeit.Mitarbeiter)</strong>
+                                <span>@arbeitszeit.Beginn.ToString("HH:mm") - @arbeitszeit.Ende.ToString("HH:mm")</span>
+                                <span>Pause: @arbeitszeit.PauseMinuten Minuten</span>
+                                <span>Gearbeitet: @StundenAnzeigen(ArbeitszeitService.BerechneArbeitsstunden(arbeitszeit)) Std.</span>
+                                @if (!string.IsNullOrWhiteSpace(arbeitszeit.Notiz))
+                                {
+                                    <span>Notiz: @arbeitszeit.Notiz</span>
+                                }
+                                <div class="entry-actions">
+                                    <button type="button" @onclick="() => ArbeitszeitBearbeiten(arbeitszeit)">Bearbeiten</button>
+                                    <button type="button" class="delete-button" @onclick="() => ArbeitszeitLoeschen(arbeitszeit.Id)">Löschen</button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <div class="day-section">
+                <h3>Abwesenheiten</h3>
+
+                @if (AbwesenheitenAmTag(ausgewaehltesDatum.Value).Count == 0)
+                {
+                    <p class="empty-message">Für diesen Tag sind keine Abwesenheiten vorhanden.</p>
+                }
+                else
+                {
+                    <div class="day-entries">
+                        @foreach (var abwesenheit in AbwesenheitenAmTag(ausgewaehltesDatum.Value))
+                        {
+                            <div class="day-entry">
+                                <strong>@MitarbeiterName(abwesenheit.Mitarbeiter)</strong>
+                                <span>@abwesenheit.Typ</span>
+                                <span>@abwesenheit.Von.ToString("dd.MM.yyyy") bis @abwesenheit.Bis.ToString("dd.MM.yyyy")</span>
+                                <span>Status: @abwesenheit.Status</span>
+                                @if (!string.IsNullOrWhiteSpace(abwesenheit.Grund))
+                                {
+                                    <span>Grund: @abwesenheit.Grund</span>
+                                }
+                                <div class="entry-actions">
+                                    <button type="button" @onclick="() => AbwesenheitBearbeiten(abwesenheit)">Bearbeiten</button>
+                                    <button type="button" class="delete-button" @onclick="() => AbwesenheitLoeschen(abwesenheit.Id)">Löschen</button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            @if (popupSichtbar && popupArt == "ArbeitszeitBearbeiten")
+            {
+                <div class="popup-background" @onclick="PopupSchliessen">
+                <div class="entry-popup" @onclick:stopPropagation="true">
+                    <h2>Arbeitszeit bearbeiten</h2>
+
+                    <EditForm Model="@bearbeiteteArbeitszeit"
+                              OnValidSubmit="@ArbeitszeitAenderungenSpeichern"
+                              FormName="ArbeitszeitBearbeiten">
+                        <DataAnnotationsValidator />
+
+                        <div class="entry-form">
+                            <div class="form-group">
+                                <label>Mitarbeiter</label>
+                                <InputSelect class="form-input" @bind-Value="bearbeiteteArbeitszeit.MitarbeiterId">
+                                    <option value="0">Bitte auswählen</option>
+                                    @foreach (var mitarbeiter in mitarbeiterListe)
+                                    {
+                                        <option value="@mitarbeiter.Id">@mitarbeiter.Vorname @mitarbeiter.Nachname</option>
+                                    }
+                                </InputSelect>
+                                <ValidationMessage For="@(() => bearbeiteteArbeitszeit.MitarbeiterId)" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Datum</label>
+                                <InputDate class="form-input" @bind-Value="bearbeiteteArbeitszeit.Datum" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Beginn</label>
+                                <InputDate class="form-input" Type="InputDateType.Time" @bind-Value="bearbeiteteArbeitszeit.Beginn" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Ende</label>
+                                <InputDate class="form-input" Type="InputDateType.Time" @bind-Value="bearbeiteteArbeitszeit.Ende" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Pause in Minuten</label>
+                                <InputNumber class="form-input" @bind-Value="bearbeiteteArbeitszeit.PauseMinuten" />
+                            </div>
+
+                            <div class="form-group full-width">
+                                <label>Notiz</label>
+                                <InputTextArea class="form-input" @bind-Value="bearbeiteteArbeitszeit.Notiz" />
+                            </div>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(formularFehler))
+                        {
+                            <p class="form-error">@formularFehler</p>
+                        }
+
+                        <div class="form-actions">
+                            <button type="button" class="cancel-button" @onclick="BearbeitungAbbrechen">Abbrechen</button>
+                            <button type="submit" class="save-button">Speichern</button>
+                        </div>
+                    </EditForm>
+                </div>
+                </div>
+            }
+            else if (popupSichtbar && popupArt == "AbwesenheitBearbeiten")
+            {
+                <div class="popup-background" @onclick="PopupSchliessen">
+                <div class="entry-popup" @onclick:stopPropagation="true">
+                    <h2>Abwesenheit bearbeiten</h2>
+
+                    <EditForm Model="@bearbeiteteAbwesenheit"
+                              OnValidSubmit="@AbwesenheitAenderungenSpeichern"
+                              FormName="AbwesenheitBearbeiten">
+                        <DataAnnotationsValidator />
+
+                        <div class="entry-form">
+                            <div class="form-group">
+                                <label>Mitarbeiter</label>
+                                <InputSelect class="form-input" @bind-Value="bearbeiteteAbwesenheit.MitarbeiterId">
+                                    <option value="0">Bitte auswählen</option>
+                                    @foreach (var mitarbeiter in mitarbeiterListe)
+                                    {
+                                        <option value="@mitarbeiter.Id">@mitarbeiter.Vorname @mitarbeiter.Nachname</option>
+                                    }
+                                </InputSelect>
+                                <ValidationMessage For="@(() => bearbeiteteAbwesenheit.MitarbeiterId)" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Von</label>
+                                <InputDate class="form-input" @bind-Value="bearbeiteteAbwesenheit.Von" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Bis</label>
+                                <InputDate class="form-input" @bind-Value="bearbeiteteAbwesenheit.Bis" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Typ</label>
+                                <InputSelect class="form-input" @bind-Value="bearbeiteteAbwesenheit.Typ">
+                                    <option value="Urlaub">Urlaub</option>
+                                    <option value="Zeitausgleich">Zeitausgleich</option>
+                                    <option value="Krankenstand">Krankenstand</option>
+                                    <option value="Sonstige Abwesenheit">Sonstige Abwesenheit</option>
+                                </InputSelect>
+                            </div>
+
+                            <div class="form-group full-width">
+                                <label>Grund</label>
+                                <InputTextArea class="form-input" @bind-Value="bearbeiteteAbwesenheit.Grund" />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Status</label>
+                                <div class="status-value">@bearbeiteteAbwesenheit.Status</div>
+                            </div>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(formularFehler))
+                        {
+                            <p class="form-error">@formularFehler</p>
+                        }
+
+                        <div class="form-actions">
+                            <button type="button" class="cancel-button" @onclick="BearbeitungAbbrechen">Abbrechen</button>
+                            <button type="submit" class="save-button">Speichern</button>
+                        </div>
+                    </EditForm>
+                </div>
+                </div>
+            }
+
+            @if (popupSichtbar && popupArt == "Neu")
+            {
+                <div class="popup-background" @onclick="PopupSchliessen">
+                <div class="entry-popup" @onclick:stopPropagation="true">
+                    <h2>Eintrag hinzufügen</h2>
+                    <h3>Was möchtest du eintragen?</h3>
+
+                    <div class="entry-buttons">
+                        <button type="button" @onclick='() => EintragsartAuswaehlen("Arbeitszeit")'>
+                            Arbeitszeit
+                        </button>
+                        <button type="button" @onclick='() => EintragsartAuswaehlen("Urlaub")'>
+                            Urlaub
+                        </button>
+                        <button type="button" @onclick='() => EintragsartAuswaehlen("Abwesenheit")'>
+                            Abwesenheit
+                        </button>
+                    </div>
+
+                    @if (string.IsNullOrEmpty(ausgewaehlteEintragsart))
+                    {
+                        <p>Bitte wähle eine Eintragsart aus.</p>
+                    }
+                    else if (ausgewaehlteEintragsart == "Arbeitszeit")
+                    {
+                        <EditForm Model="@neueArbeitszeit"
+                                  OnValidSubmit="@ArbeitszeitSpeichern"
+                                  FormName="ArbeitszeitErstellen">
+                            <DataAnnotationsValidator />
+
+                            <div class="entry-form">
+                                <div class="form-group">
+                                    <label>Mitarbeiter</label>
+                                    <InputSelect class="form-input" @bind-Value="neueArbeitszeit.MitarbeiterId">
+                                        <option value="0">Bitte auswählen</option>
+                                        @foreach (var mitarbeiter in mitarbeiterListe)
+                                        {
+                                            <option value="@mitarbeiter.Id">@mitarbeiter.Vorname @mitarbeiter.Nachname</option>
+                                        }
+                                    </InputSelect>
+                                    <ValidationMessage For="@(() => neueArbeitszeit.MitarbeiterId)" />
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Datum</label>
+                                    <InputDate class="form-input" @bind-Value="neueArbeitszeit.Datum" />
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Beginn</label>
+                                    <InputDate class="form-input" Type="InputDateType.Time" @bind-Value="neueArbeitszeit.Beginn" />
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Ende</label>
+                                    <InputDate class="form-input" Type="InputDateType.Time" @bind-Value="neueArbeitszeit.Ende" />
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Pause in Minuten</label>
+                                    <InputNumber class="form-input" @bind-Value="neueArbeitszeit.PauseMinuten" />
+                                </div>
+
+                                <div class="form-group full-width">
+                                    <label>Notiz</label>
+                                    <InputTextArea class="form-input" @bind-Value="neueArbeitszeit.Notiz" />
+                                </div>
+                            </div>
+
+                            @if (!string.IsNullOrEmpty(formularFehler))
+                            {
+                                <p class="form-error">@formularFehler</p>
+                            }
+
+                            <div class="form-actions">
+                                <button type="button" class="cancel-button" @onclick="EintragAbbrechen">Abbrechen</button>
+                                <button type="submit" class="save-button">Speichern</button>
+                            </div>
+                        </EditForm>
+                    }
+                    else
+                    {
+                        <EditForm Model="@neueAbwesenheit"
+                                  OnValidSubmit="@AbwesenheitSpeichern"
+                                  FormName="AbwesenheitErstellen">
+                            <DataAnnotationsValidator />
+
+                            <div class="entry-form">
+                                <div class="form-group">
+                                    <label>Mitarbeiter</label>
+                                    <InputSelect class="form-input" @bind-Value="neueAbwesenheit.MitarbeiterId">
+                                        <option value="0">Bitte auswählen</option>
+                                        @foreach (var mitarbeiter in mitarbeiterListe)
+                                        {
+                                            <option value="@mitarbeiter.Id">@mitarbeiter.Vorname @mitarbeiter.Nachname</option>
+                                        }
+                                    </InputSelect>
+                                    <ValidationMessage For="@(() => neueAbwesenheit.MitarbeiterId)" />
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Von</label>
+                                    <InputDate class="form-input" @bind-Value="neueAbwesenheit.Von" />
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Bis</label>
+                                    <InputDate class="form-input" @bind-Value="neueAbwesenheit.Bis" />
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Typ</label>
+                                    <InputSelect class="form-input" @bind-Value="neueAbwesenheit.Typ">
+                                        <option value="Urlaub">Urlaub</option>
+                                        <option value="Zeitausgleich">Zeitausgleich</option>
+                                        <option value="Krankenstand">Krankenstand</option>
+                                        <option value="Sonstige Abwesenheit">Sonstige Abwesenheit</option>
+                                    </InputSelect>
+                                </div>
+
+                                <div class="form-group full-width">
+                                    <label>Grund</label>
+                                    <InputTextArea class="form-input" @bind-Value="neueAbwesenheit.Grund" />
+                                </div>
+                            </div>
+
+                            @if (!string.IsNullOrEmpty(formularFehler))
+                            {
+                                <p class="form-error">@formularFehler</p>
+                            }
+
+                            <div class="form-actions">
+                                <button type="button" class="cancel-button" @onclick="EintragAbbrechen">Abbrechen</button>
+                                <button type="submit" class="save-button">Speichern</button>
+                            </div>
+                        </EditForm>
+                    }
+
+                </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@if (popupSichtbar && (popupArt == "Arbeitszeit" || popupArt == "Abwesenheit" || popupArt == "Auftrag"))
+{
+    <div class="popup-background" @onclick="PopupSchliessen">
+        <div class="entry-popup" @onclick:stopPropagation="true">
+            @if (popupArt == "Arbeitszeit" && popupArbeitszeit != null)
+            {
+                <h2>Arbeitszeit</h2>
+                <div class="popup-details">
+                    <strong>@MitarbeiterName(popupArbeitszeit.Mitarbeiter)</strong>
+                    <span>Datum: @popupArbeitszeit.Datum.ToString("dd.MM.yyyy")</span>
+                    <span>Beginn: @popupArbeitszeit.Beginn.ToString("HH:mm")</span>
+                    <span>Ende: @popupArbeitszeit.Ende.ToString("HH:mm")</span>
+                    <span>Pause: @popupArbeitszeit.PauseMinuten Minuten</span>
+                    <span>Gearbeitet: @StundenAnzeigen(ArbeitszeitService.BerechneArbeitsstunden(popupArbeitszeit)) Std.</span>
+                    @if (!string.IsNullOrWhiteSpace(popupArbeitszeit.Notiz))
+                    {
+                        <span>Notiz: @popupArbeitszeit.Notiz</span>
+                    }
+                </div>
+
+                <div class="popup-actions">
+                    <button type="button" @onclick="ArbeitszeitAusPopupBearbeiten">Bearbeiten</button>
+                    <button type="button" class="popup-delete" @onclick="ArbeitszeitAusPopupLoeschen">Löschen</button>
+                    <button type="button" @onclick="PopupSchliessen">Schließen</button>
+                </div>
+            }
+            else if (popupArt == "Abwesenheit" && popupAbwesenheit != null)
+            {
+                <h2>Abwesenheit</h2>
+                <div class="popup-details">
+                    <strong>@MitarbeiterName(popupAbwesenheit.Mitarbeiter)</strong>
+                    <span>Typ: @popupAbwesenheit.Typ</span>
+                    <span>Von: @popupAbwesenheit.Von.ToString("dd.MM.yyyy")</span>
+                    <span>Bis: @popupAbwesenheit.Bis.ToString("dd.MM.yyyy")</span>
+                    @if (!string.IsNullOrWhiteSpace(popupAbwesenheit.Grund))
+                    {
+                        <span>Grund: @popupAbwesenheit.Grund</span>
+                    }
+                    <span>Status: @popupAbwesenheit.Status</span>
+                </div>
+
+                <div class="popup-actions">
+                    <button type="button" @onclick="AbwesenheitAusPopupBearbeiten">Bearbeiten</button>
+                    <button type="button" class="popup-delete" @onclick="AbwesenheitAusPopupLoeschen">Löschen</button>
+                    <button type="button" @onclick="PopupSchliessen">Schließen</button>
+                </div>
+            }
+            else if (popupArt == "Auftrag" && popupAuftrag != null)
+            {
+                <h2>Auftrag</h2>
+                <div class="popup-details">
+                    <strong>@popupAuftrag.Titel</strong>
+                    <span>Kunde: @(popupAuftrag.Kunde?.Firmenname ?? "Kein Kunde")</span>
+                    <span>Startdatum: @popupAuftrag.Startdatum.ToString("dd.MM.yyyy")</span>
+                    <span>Enddatum: @popupAuftrag.Enddatum.ToString("dd.MM.yyyy")</span>
+                    <span>Einsatzort: @popupAuftrag.Einsatzort</span>
+                    <span>Beschreibung: @popupAuftrag.Beschreibung</span>
+                    <span>Qualifikationen: @AuftragQualifikationen(popupAuftrag)</span>
+                    <span>Mitarbeiter: @AuftragMitarbeiter(popupAuftrag)</span>
+                    <span>Status: @(popupAuftrag.Mitarbeiter.Count > 0 ? "Besetzt" : "Offen")</span>
+                </div>
+
+                <div class="popup-actions">
+                    <button type="button" @onclick="PopupSchliessen">Schließen</button>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private readonly string[] wochentage =
+    {
+        "Montag",
+        "Dienstag",
+        "Mittwoch",
+        "Donnerstag",
+        "Freitag",
+        "Samstag",
+        "Sonntag"
+    };
+
+    private List<Auftrag> auftraege = new();
+    private List<Mitarbeiter> mitarbeiterListe = new();
+    private List<Arbeitszeit> arbeitszeiten = new();
+    private List<Abwesenheit> abwesenheiten = new();
+    private DateTime angezeigterMonat = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private DateTime? ausgewaehltesDatum;
+    private string ausgewaehlteEintragsart = string.Empty;
+    private Arbeitszeit neueArbeitszeit = new();
+    private Abwesenheit neueAbwesenheit = new();
+    private Arbeitszeit bearbeiteteArbeitszeit = new();
+    private Abwesenheit bearbeiteteAbwesenheit = new();
+    private string formularFehler = string.Empty;
+    private bool popupSichtbar;
+    private string popupArt = string.Empty;
+    private Auftrag? popupAuftrag;
+    private Arbeitszeit? popupArbeitszeit;
+    private Abwesenheit? popupAbwesenheit;
+    private int mitarbeiterfilter;
+    private string mitarbeitersuche = string.Empty;
+    private bool mitarbeitervorschlaegeSichtbar;
+
+    protected override async Task OnInitializedAsync()
+    {
+        auftraege = await AuftragService.GetAllAsync();
+        mitarbeiterListe = await MitarbeiterService.GetAllAsync();
+        arbeitszeiten = await ArbeitszeitService.GetAllAsync();
+        abwesenheiten = await AbwesenheitService.GetAllAsync();
+    }
+
+    private void VorherigerMonat()
+    {
+        angezeigterMonat = angezeigterMonat.AddMonths(-1);
+        AuswahlZuruecksetzen();
+    }
+
+    private void NaechsterMonat()
+    {
+        angezeigterMonat = angezeigterMonat.AddMonths(1);
+        AuswahlZuruecksetzen();
+    }
+
+    private void AktuellerMonat()
+    {
+        angezeigterMonat = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+        ausgewaehltesDatum = DateTime.Today;
+        ausgewaehlteEintragsart = string.Empty;
+        formularFehler = string.Empty;
+    }
+
+    private void TagAuswaehlen(DateTime datum)
+    {
+        ausgewaehltesDatum = datum;
+        ausgewaehlteEintragsart = string.Empty;
+        formularFehler = string.Empty;
+    }
+
+    private bool IstAusgewaehlt(DateTime datum)
+    {
+        return ausgewaehltesDatum != null && ausgewaehltesDatum.Value.Date == datum.Date;
+    }
+
+    private void AuswahlZuruecksetzen()
+    {
+        ausgewaehltesDatum = null;
+        ausgewaehlteEintragsart = string.Empty;
+        formularFehler = string.Empty;
+    }
+
+    private void EintragsauswahlAnzeigen()
+    {
+        ausgewaehlteEintragsart = string.Empty;
+        formularFehler = string.Empty;
+        popupArt = "Neu";
+        popupSichtbar = true;
+    }
+
+    private void EintragAmTagHinzufuegen(DateTime datum)
+    {
+        TagAuswaehlen(datum);
+        EintragsauswahlAnzeigen();
+    }
+
+    private void EintragsartAuswaehlen(string eintragsart)
+    {
+        ausgewaehlteEintragsart = eintragsart;
+        formularFehler = string.Empty;
+
+        if (ausgewaehltesDatum == null)
+        {
+            return;
+        }
+
+        if (eintragsart == "Arbeitszeit")
+        {
+            neueArbeitszeit = new Arbeitszeit
+            {
+                Datum = ausgewaehltesDatum.Value,
+                Beginn = new TimeOnly(8, 0),
+                Ende = new TimeOnly(16, 0)
+            };
+        }
+        else
+        {
+            neueAbwesenheit = new Abwesenheit
+            {
+                Von = ausgewaehltesDatum.Value,
+                Bis = ausgewaehltesDatum.Value,
+                Typ = eintragsart == "Urlaub" ? "Urlaub" : "Sonstige Abwesenheit",
+                Status = "Offen"
+            };
+        }
+    }
+
+    private async Task ArbeitszeitSpeichern()
+    {
+        formularFehler = ArbeitszeitService.Validierungsfehler(neueArbeitszeit);
+
+        if (formularFehler != string.Empty)
+        {
+            return;
+        }
+
+        await ArbeitszeitService.AddAsync(neueArbeitszeit);
+        arbeitszeiten = await ArbeitszeitService.GetAllAsync();
+        EintragAbbrechen();
+    }
+
+    private async Task AbwesenheitSpeichern()
+    {
+        if (neueAbwesenheit.Bis.Date < neueAbwesenheit.Von.Date)
+        {
+            formularFehler = "Das Bis-Datum darf nicht vor dem Von-Datum liegen.";
+            return;
+        }
+
+        neueAbwesenheit.Status = "Offen";
+        await AbwesenheitService.AddAsync(neueAbwesenheit);
+        abwesenheiten = await AbwesenheitService.GetAllAsync();
+        EintragAbbrechen();
+    }
+
+    private void EintragAbbrechen()
+    {
+        ausgewaehlteEintragsart = string.Empty;
+        formularFehler = string.Empty;
+        neueArbeitszeit = new Arbeitszeit();
+        neueAbwesenheit = new Abwesenheit();
+        PopupSchliessen();
+    }
+
+    private void ArbeitszeitBearbeiten(Arbeitszeit arbeitszeit)
+    {
+        bearbeiteteArbeitszeit = ArbeitszeitService.ErstelleArbeitskopie(arbeitszeit);
+
+        formularFehler = string.Empty;
+        popupArt = "ArbeitszeitBearbeiten";
+        popupSichtbar = true;
+    }
+
+    private async Task ArbeitszeitAenderungenSpeichern()
+    {
+        formularFehler = ArbeitszeitService.Validierungsfehler(bearbeiteteArbeitszeit);
+
+        if (formularFehler != string.Empty)
+        {
+            return;
+        }
+
+        await ArbeitszeitService.UpdateAsync(bearbeiteteArbeitszeit);
+        arbeitszeiten = await ArbeitszeitService.GetAllAsync();
+        BearbeitungAbbrechen();
+    }
+
+    private async Task ArbeitszeitLoeschen(int id)
+    {
+        await ArbeitszeitService.DeleteAsync(id);
+        arbeitszeiten = await ArbeitszeitService.GetAllAsync();
+
+        if (bearbeiteteArbeitszeit.Id == id)
+        {
+            BearbeitungAbbrechen();
+        }
+    }
+
+    private void AbwesenheitBearbeiten(Abwesenheit abwesenheit)
+    {
+        bearbeiteteAbwesenheit = new Abwesenheit
+        {
+            Id = abwesenheit.Id,
+            MitarbeiterId = abwesenheit.MitarbeiterId,
+            Von = abwesenheit.Von,
+            Bis = abwesenheit.Bis,
+            Typ = abwesenheit.Typ,
+            Grund = abwesenheit.Grund,
+            Status = abwesenheit.Status
+        };
+
+        formularFehler = string.Empty;
+        popupArt = "AbwesenheitBearbeiten";
+        popupSichtbar = true;
+    }
+
+    private async Task AbwesenheitAenderungenSpeichern()
+    {
+        if (bearbeiteteAbwesenheit.Bis.Date < bearbeiteteAbwesenheit.Von.Date)
+        {
+            formularFehler = "Das Bis-Datum darf nicht vor dem Von-Datum liegen.";
+            return;
+        }
+
+        await AbwesenheitService.UpdateAsync(bearbeiteteAbwesenheit);
+        abwesenheiten = await AbwesenheitService.GetAllAsync();
+        BearbeitungAbbrechen();
+    }
+
+    private async Task AbwesenheitLoeschen(int id)
+    {
+        await AbwesenheitService.DeleteAsync(id);
+        abwesenheiten = await AbwesenheitService.GetAllAsync();
+
+        if (bearbeiteteAbwesenheit.Id == id)
+        {
+            BearbeitungAbbrechen();
+        }
+    }
+
+    private void BearbeitungAbbrechen()
+    {
+        formularFehler = string.Empty;
+        bearbeiteteArbeitszeit = new Arbeitszeit();
+        bearbeiteteAbwesenheit = new Abwesenheit();
+        PopupSchliessen();
+    }
+
+    private void AuftragPopupOeffnen(Auftrag auftrag)
+    {
+        popupAuftrag = auftrag;
+        popupArbeitszeit = null;
+        popupAbwesenheit = null;
+        popupArt = "Auftrag";
+        popupSichtbar = true;
+    }
+
+    private void ArbeitszeitPopupOeffnen(Arbeitszeit arbeitszeit)
+    {
+        ausgewaehltesDatum = arbeitszeit.Datum.Date;
+        popupAuftrag = null;
+        popupArbeitszeit = arbeitszeit;
+        popupAbwesenheit = null;
+        popupArt = "Arbeitszeit";
+        popupSichtbar = true;
+    }
+
+    private void AbwesenheitPopupOeffnen(Abwesenheit abwesenheit)
+    {
+        ausgewaehltesDatum = abwesenheit.Von.Date;
+        popupAuftrag = null;
+        popupArbeitszeit = null;
+        popupAbwesenheit = abwesenheit;
+        popupArt = "Abwesenheit";
+        popupSichtbar = true;
+    }
+
+    private void PopupSchliessen()
+    {
+        popupSichtbar = false;
+        popupArt = string.Empty;
+        popupAuftrag = null;
+        popupArbeitszeit = null;
+        popupAbwesenheit = null;
+        ausgewaehlteEintragsart = string.Empty;
+        formularFehler = string.Empty;
+        neueArbeitszeit = new Arbeitszeit();
+        neueAbwesenheit = new Abwesenheit();
+        bearbeiteteArbeitszeit = new Arbeitszeit();
+        bearbeiteteAbwesenheit = new Abwesenheit();
+    }
+
+    private void ArbeitszeitAusPopupBearbeiten()
+    {
+        if (popupArbeitszeit == null)
+        {
+            return;
+        }
+
+        var arbeitszeit = popupArbeitszeit;
+        PopupSchliessen();
+        ArbeitszeitBearbeiten(arbeitszeit);
+    }
+
+    private async Task ArbeitszeitAusPopupLoeschen()
+    {
+        if (popupArbeitszeit == null)
+        {
+            return;
+        }
+
+        var id = popupArbeitszeit.Id;
+        PopupSchliessen();
+        await ArbeitszeitLoeschen(id);
+    }
+
+    private void AbwesenheitAusPopupBearbeiten()
+    {
+        if (popupAbwesenheit == null)
+        {
+            return;
+        }
+
+        var abwesenheit = popupAbwesenheit;
+        PopupSchliessen();
+        AbwesenheitBearbeiten(abwesenheit);
+    }
+
+    private async Task AbwesenheitAusPopupLoeschen()
+    {
+        if (popupAbwesenheit == null)
+        {
+            return;
+        }
+
+        var id = popupAbwesenheit.Id;
+        PopupSchliessen();
+        await AbwesenheitLoeschen(id);
+    }
+
+    private void MitarbeitersucheOeffnen()
+    {
+        mitarbeitersuche = string.Empty;
+        mitarbeitervorschlaegeSichtbar = true;
+    }
+
+    private void MitarbeitersucheGeaendert(ChangeEventArgs e)
+    {
+        mitarbeitersuche = e.Value?.ToString() ?? string.Empty;
+        mitarbeitervorschlaegeSichtbar = true;
+    }
+
+    private void MitarbeiterAuswaehlen(Mitarbeiter mitarbeiter)
+    {
+        mitarbeiterfilter = mitarbeiter.Id;
+        mitarbeitersuche = MitarbeiterName(mitarbeiter);
+        mitarbeitervorschlaegeSichtbar = false;
+    }
+
+    private void AlleMitarbeiterAuswaehlen()
+    {
+        mitarbeiterfilter = 0;
+        mitarbeitersuche = string.Empty;
+        mitarbeitervorschlaegeSichtbar = false;
+    }
+
+    private void MitarbeitersucheSchliessen()
+    {
+        var ausgewaehlterMitarbeiter = mitarbeiterListe.Find(m => m.Id == mitarbeiterfilter);
+
+        if (ausgewaehlterMitarbeiter == null)
+        {
+            mitarbeitersuche = string.Empty;
+        }
+        else
+        {
+            mitarbeitersuche = MitarbeiterName(ausgewaehlterMitarbeiter);
+        }
+
+        mitarbeitervorschlaegeSichtbar = false;
+    }
+
+    private List<Mitarbeiter> GefilterteMitarbeiter()
+    {
+        var gefilterteMitarbeiter = new List<Mitarbeiter>();
+
+        foreach (var mitarbeiter in mitarbeiterListe)
+        {
+            if (MitarbeiterService.PasstZurSuche(mitarbeiter, mitarbeitersuche))
+            {
+                gefilterteMitarbeiter.Add(mitarbeiter);
+            }
+        }
+
+        return gefilterteMitarbeiter;
+    }
+
+    private string MitarbeiterQualifikationen(Mitarbeiter mitarbeiter)
+    {
+        var namen = string.Empty;
+
+        foreach (var qualifikation in mitarbeiter.Qualifikationen)
+        {
+            if (namen != string.Empty)
+            {
+                namen += ", ";
+            }
+
+            namen += qualifikation.Name;
+        }
+
+        if (namen == string.Empty)
+        {
+            return "Keine Qualifikation";
+        }
+
+        return namen;
+    }
+
+    private string AuftragQualifikationen(Auftrag auftrag)
+    {
+        var namen = string.Empty;
+
+        foreach (var qualifikation in auftrag.Qualifikationen)
+        {
+            if (namen != string.Empty)
+            {
+                namen += ", ";
+            }
+
+            namen += qualifikation.Name;
+        }
+
+        if (namen == string.Empty)
+        {
+            return "Keine Qualifikationen zugewiesen";
+        }
+
+        return namen;
+    }
+
+    private string MitarbeiterName(Mitarbeiter? mitarbeiter)
+    {
+        if (mitarbeiter == null)
+        {
+            return "Unbekannter Mitarbeiter";
+        }
+
+        return mitarbeiter.Vorname + " " + mitarbeiter.Nachname;
+    }
+
+    private string AuftragMitarbeiter(Auftrag auftrag)
+    {
+        var namen = string.Empty;
+
+        foreach (var mitarbeiter in auftrag.Mitarbeiter)
+        {
+            if (namen != string.Empty)
+            {
+                namen += ", ";
+            }
+
+            namen += mitarbeiter.Vorname + " " + mitarbeiter.Nachname;
+        }
+
+        return namen == string.Empty ? "Keine" : namen;
+    }
+
+    private string DatumAnzeigen(DateTime datum)
+    {
+        var kultur = CultureInfo.GetCultureInfo("de-DE");
+        return datum.ToString("d. MMMM yyyy", kultur);
+    }
+
+    private string Monatsname()
+    {
+        var kultur = CultureInfo.GetCultureInfo("de-DE");
+        return angezeigterMonat.ToString("MMMM yyyy", kultur);
+    }
+
+    private string AusgewaehlterMitarbeiterName()
+    {
+        var mitarbeiter = mitarbeiterListe.Find(m => m.Id == mitarbeiterfilter);
+
+        if (mitarbeiter == null)
+        {
+            return "Alle Mitarbeiter";
+        }
+
+        return MitarbeiterName(mitarbeiter);
+    }
+
+    private string MonatsstundenAnzeigen()
+    {
+        var stunden = ArbeitszeitService.BerechneMonatsstunden(
+            arbeitszeiten,
+            mitarbeiterfilter,
+            angezeigterMonat.Year,
+            angezeigterMonat.Month);
+
+        var kultur = CultureInfo.GetCultureInfo("de-DE");
+        return Math.Round(stunden, 1).ToString("0.#", kultur);
+    }
+
+    private int ErsterWochentag()
+    {
+        var wochentag = (int)angezeigterMonat.DayOfWeek;
+
+        if (wochentag == 0)
+        {
+            return 6;
+        }
+
+        return wochentag - 1;
+    }
+
+    private int AnzahlKalenderfelder()
+    {
+        var anzahlTage = DateTime.DaysInMonth(angezeigterMonat.Year, angezeigterMonat.Month);
+        var benoetigteFelder = ErsterWochentag() + anzahlTage;
+        var anzahlWochen = (benoetigteFelder + 6) / 7;
+
+        return anzahlWochen * 7;
+    }
+
+    private List<Auftrag> AuftraegeAmTag(DateTime datum)
+    {
+        var passendeAuftraege = new List<Auftrag>();
+
+        foreach (var auftrag in auftraege)
+        {
+            if (datum.Date >= auftrag.Startdatum.Date
+                && datum.Date <= auftrag.Enddatum.Date
+                && AuftragService.PasstZuMitarbeiter(auftrag, mitarbeiterfilter))
+            {
+                passendeAuftraege.Add(auftrag);
+            }
+        }
+
+        return passendeAuftraege;
+    }
+
+    private List<Arbeitszeit> ArbeitszeitenAmTag(DateTime datum)
+    {
+        var passendeArbeitszeiten = new List<Arbeitszeit>();
+
+        foreach (var arbeitszeit in arbeitszeiten)
+        {
+            if (arbeitszeit.Datum.Date == datum.Date
+                && ArbeitszeitService.PasstZuMitarbeiter(arbeitszeit, mitarbeiterfilter))
+            {
+                passendeArbeitszeiten.Add(arbeitszeit);
+            }
+        }
+
+        return passendeArbeitszeiten;
+    }
+
+    private string StundenAnzeigen(double stunden)
+    {
+        var dauer = TimeSpan.FromHours(Math.Abs(stunden));
+        var vorzeichen = stunden < 0 ? "-" : string.Empty;
+        return vorzeichen + (int)dauer.TotalHours + ":" + dauer.Minutes.ToString("00");
+    }
+
+    private List<Abwesenheit> AbwesenheitenAmTag(DateTime datum)
+    {
+        var passendeAbwesenheiten = new List<Abwesenheit>();
+
+        foreach (var abwesenheit in abwesenheiten)
+        {
+            if (datum.Date >= abwesenheit.Von.Date
+                && datum.Date <= abwesenheit.Bis.Date
+                && AbwesenheitService.PasstZuMitarbeiter(abwesenheit, mitarbeiterfilter))
+            {
+                passendeAbwesenheiten.Add(abwesenheit);
+            }
+        }
+
+        return passendeAbwesenheiten;
+    }
+
+    private string AbwesenheitsKlasse(Abwesenheit abwesenheit, DateTime datum)
+    {
+        var letzterTagImMonat = DateTime.DaysInMonth(datum.Year, datum.Month);
+        var beginnt = IstAbwesenheitsSegmentStart(abwesenheit, datum);
+        var endet = datum.Date == abwesenheit.Bis.Date
+            || datum.DayOfWeek == DayOfWeek.Sunday
+            || datum.Day == letzterTagImMonat;
+
+        if (beginnt && endet)
+        {
+            return "absence-single";
+        }
+
+        if (beginnt)
+        {
+            return "absence-start";
+        }
+
+        if (endet)
+        {
+            return "absence-end";
+        }
+
+        return "absence-middle";
+    }
+
+    private bool IstAbwesenheitsSegmentStart(Abwesenheit abwesenheit, DateTime datum)
+    {
+        return datum.Date == abwesenheit.Von.Date
+            || datum.DayOfWeek == DayOfWeek.Monday
+            || datum.Day == 1;
+    }
+}

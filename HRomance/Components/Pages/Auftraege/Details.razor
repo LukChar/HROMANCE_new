@@ -5,85 +5,552 @@
 @using HRomance.Services
 
 @inject AuftragService AuftragService
+@inject MitarbeiterService MitarbeiterService
 @inject NavigationManager Navigation
 
 <PageTitle>Auftragsdetails</PageTitle>
 
-<h3>Auftragsdetails</h3>
-
-@if (auftrag == null)
-{
-    <p>Lade Daten...</p>
-}
-else
-{
-    <div class="card">
-        <div class="card-body">
-
-            <div class="mb-3">
-                <strong>Titel:</strong><br />
-                @auftrag.Titel
-            </div>
-
-            <div class="mb-3">
-                <strong>Beschreibung:</strong><br />
-                @auftrag.Beschreibung
-            </div>
-
-            <div class="mb-3">
-                <strong>Einsatzort:</strong><br />
-                @auftrag.Einsatzort
-            </div>
-
-            <div class="mb-3">
-                <strong>Benötigte Qualifikation:</strong><br />
-                @auftrag.BenoetigteQualifikation
-            </div>
-
-            <div class="mb-3">
-                <strong>Startdatum:</strong><br />
-                @auftrag.Startdatum.ToShortDateString()
-            </div>
-
-            <div class="mb-3">
-                <strong>Enddatum:</strong><br />
-                @auftrag.Enddatum.ToShortDateString()
-            </div>
-
-            <div class="mb-3">
-                <strong>Kunde:</strong><br />
-                @auftrag.Kunde?.Firmenname
-            </div>
-
-            <div class="mb-3">
-                <strong>Besetzt:</strong><br />
-                @(auftrag.Besetzt ? "Ja" : "Nein")
-            </div>
-
-            <button class="btn btn-secondary"
-                    @onclick="Zurueck">
-                Zurück
-            </button>
-
+<div class="details-page">
+    <div class="page-header">
+        <div>
+            <h1>Auftragsdetails</h1>
+            <p>Informationen zum Auftrag</p>
         </div>
+
+        <a href="/auftraege" class="back-button">Zurück</a>
     </div>
-}
+
+    @if (!istGeladen)
+    {
+        <p>Lade Daten...</p>
+    }
+    else if (auftrag == null)
+    {
+        <div class="message-card">
+            Auftrag wurde nicht gefunden.
+        </div>
+    }
+    else
+    {
+        <div class="details-card">
+            <div class="details-grid">
+                <div>
+                    <span class="details-label">Titel</span>
+                    <strong>@auftrag.Titel</strong>
+                </div>
+
+                <div>
+                    <span class="details-label">Kunde</span>
+                    <strong>@auftrag.Kunde?.Firmenname</strong>
+                </div>
+
+                <div class="full-width">
+                    <span class="details-label">Beschreibung</span>
+                    <strong>@auftrag.Beschreibung</strong>
+                </div>
+
+                <div>
+                    <span class="details-label">Einsatzort</span>
+                    <strong>@auftrag.Einsatzort</strong>
+                </div>
+
+                <div>
+                    <span class="details-label">Benötigte Qualifikationen</span>
+                    @if (auftrag.Qualifikationen.Count == 0)
+                    {
+                        <strong>Keine Qualifikationen zugewiesen.</strong>
+                    }
+                    else
+                    {
+                        <strong>@QualifikationsNamen()</strong>
+                    }
+                </div>
+
+                <div>
+                    <span class="details-label">Startdatum</span>
+                    <strong>@auftrag.Startdatum.ToShortDateString()</strong>
+                </div>
+
+                <div>
+                    <span class="details-label">Enddatum</span>
+                    <strong>@auftrag.Enddatum.ToShortDateString()</strong>
+                </div>
+
+                <div>
+                    <span class="details-label">Status</span>
+                    <strong>@(auftrag.Mitarbeiter.Count > 0 ? "Besetzt" : "Offen")</strong>
+                </div>
+
+                <div>
+                    <span class="details-label">Zugewiesene Mitarbeiter</span>
+                    <strong>@auftrag.Mitarbeiter.Count</strong>
+                </div>
+            </div>
+
+            <div class="assignment-section">
+                <div class="assignment-header">
+                    <h2>Zugewiesene Mitarbeiter</h2>
+                    <button type="button" class="assign-button" @onclick="ZuweisungOeffnen">
+                        Mitarbeiter zuweisen
+                    </button>
+                </div>
+
+                @if (auftrag.Mitarbeiter.Count == 0)
+                {
+                    <p>Noch keine Mitarbeiter zugewiesen.</p>
+                }
+                else
+                {
+                    <div class="assigned-list">
+                        @foreach (var mitarbeiter in auftrag.Mitarbeiter)
+                        {
+                            <div class="assigned-employee">
+                                <div>
+                                    <strong>@mitarbeiter.Vorname @mitarbeiter.Nachname</strong>
+                                    <span>@MitarbeiterQualifikationen(mitarbeiter)</span>
+                                </div>
+                                <button type="button" @onclick="() => EntfernenBestaetigen(mitarbeiter)">
+                                    Entfernen
+                                </button>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <div class="details-actions">
+                <a href="/auftraege/edit/@auftrag.Id" class="edit-button">Bearbeiten</a>
+
+                <button type="button"
+                        class="delete-button"
+                        @onclick="LoeschenBestaetigen">
+                    Löschen
+                </button>
+            </div>
+
+            @if (loeschenBestaetigen)
+            {
+                <div class="delete-confirmation">
+                    <p>Möchtest du diesen Auftrag wirklich löschen?</p>
+
+                    <div class="confirmation-actions">
+                        <button type="button"
+                                class="cancel-button"
+                                @onclick="LoeschenAbbrechen">
+                            Abbrechen
+                        </button>
+
+                        <button type="button"
+                                class="delete-button"
+                                @onclick="EndgueltigLoeschen">
+                            Endgültig löschen
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    @if (zuweisungSichtbar && auftrag != null)
+    {
+        <div class="assignment-background" @onclick="ZuweisungAbbrechen">
+            <div class="assignment-popup" @onclick:stopPropagation="true">
+                <h2>Mitarbeiter zuweisen</h2>
+
+                <div class="employee-filters">
+                    <input type="text"
+                           placeholder="Mitarbeiter suchen..."
+                           value="@mitarbeitersuche"
+                           @oninput="MitarbeitersucheGeaendert" />
+
+                    <select value="@verfuegbarkeitsfilter" @onchange="VerfuegbarkeitsfilterGeaendert">
+                        <option value="Alle">Alle Mitarbeiter</option>
+                        <option value="Verfügbar">Nur verfügbare</option>
+                        <option value="Nicht verfügbar">Nur nicht verfügbare</option>
+                    </select>
+                </div>
+
+                @if (mitarbeiterListe.Count == 0)
+                {
+                    <p>Es sind noch keine Mitarbeiter vorhanden.</p>
+                }
+                else if (GefilterteMitarbeiter().Count == 0)
+                {
+                    <p>Keine Mitarbeiter gefunden.</p>
+                }
+                else
+                {
+                    <div class="employee-selection">
+                        @foreach (var mitarbeiter in GefilterteMitarbeiter())
+                        {
+                            var verfuegbarkeit = Verfuegbarkeit(mitarbeiter.Id);
+                            var istVerfuegbar = verfuegbarkeit == "Verfügbar";
+
+                            <label class="employee-option @(istVerfuegbar ? "" : "unavailable")">
+                                <input type="checkbox"
+                                       checked="@IstAusgewaehlt(mitarbeiter.Id)"
+                                       @onchange="() => MitarbeiterAuswahlWechseln(mitarbeiter.Id)" />
+                                <span>
+                                    <strong>@mitarbeiter.Vorname @mitarbeiter.Nachname</strong>
+                                    <small>Qualifikationen: @MitarbeiterQualifikationen(mitarbeiter)</small>
+                                    <small>@verfuegbarkeit</small>
+                                    <small>@PassendeQualifikationenText(mitarbeiter)</small>
+                                </span>
+                            </label>
+                        }
+                    </div>
+                }
+
+                <div class="assignment-actions">
+                    <button type="button" class="cancel-button" @onclick="ZuweisungAbbrechen">Abbrechen</button>
+                    <button type="button" class="assign-button" @onclick="MitarbeiterZuweisen">Zuweisen</button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (zuEntfernenderMitarbeiter != null)
+    {
+        <div class="assignment-background" @onclick="EntfernenAbbrechen">
+            <div class="remove-popup" @onclick:stopPropagation="true">
+                <h2>Mitarbeiter vom Auftrag entfernen?</h2>
+                <p>@zuEntfernenderMitarbeiter.Vorname @zuEntfernenderMitarbeiter.Nachname</p>
+
+                <div class="assignment-actions">
+                    <button type="button" class="cancel-button" @onclick="EntfernenAbbrechen">
+                        Abbrechen
+                    </button>
+                    <button type="button" class="remove-button" @onclick="MitarbeiterEndgueltigEntfernen">
+                        Entfernen
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
 
 @code {
-
     [Parameter]
     public int Id { get; set; }
 
+    [SupplyParameterFromQuery(Name = "zuweisen")]
+    public bool ZuweisenOeffnen { get; set; }
+
     private Auftrag? auftrag;
+    private bool istGeladen;
+    private bool loeschenBestaetigen;
+    private bool zuweisungSichtbar;
+    private List<Mitarbeiter> mitarbeiterListe = new();
+    private List<int> ausgewaehlteMitarbeiterIds = new();
+    private Dictionary<int, string> verfuegbarkeiten = new();
+    private Mitarbeiter? zuEntfernenderMitarbeiter;
+    private string mitarbeitersuche = string.Empty;
+    private string verfuegbarkeitsfilter = "Alle";
 
     protected override async Task OnInitializedAsync()
     {
-        auftrag = await AuftragService.GetByIdAsync(Id);
+        await DatenLaden();
+        istGeladen = true;
+
+        if (ZuweisenOeffnen && auftrag != null)
+        {
+            ZuweisungOeffnen();
+        }
     }
 
-    private void Zurueck()
+    private async Task DatenLaden()
     {
+        auftrag = await AuftragService.GetByIdAsync(Id);
+        mitarbeiterListe = await MitarbeiterService.GetAllAsync();
+        verfuegbarkeiten.Clear();
+
+        if (auftrag != null)
+        {
+            foreach (var mitarbeiter in mitarbeiterListe)
+            {
+                var verfuegbarkeit = await AuftragService.MitarbeiterVerfuegbarkeitPruefenAsync(
+                    mitarbeiter.Id,
+                    auftrag);
+
+                verfuegbarkeiten[mitarbeiter.Id] = verfuegbarkeit;
+            }
+        }
+    }
+
+    private string QualifikationsNamen()
+    {
+        string namen = string.Empty;
+
+        if (auftrag != null)
+        {
+            foreach (var qualifikation in auftrag.Qualifikationen)
+            {
+                if (namen != string.Empty)
+                {
+                    namen += ", ";
+                }
+
+                namen += qualifikation.Name;
+            }
+        }
+
+        return namen;
+    }
+
+    private string MitarbeiterQualifikationen(Mitarbeiter mitarbeiter)
+    {
+        var namen = string.Empty;
+
+        foreach (var qualifikation in mitarbeiter.Qualifikationen)
+        {
+            if (namen != string.Empty)
+            {
+                namen += ", ";
+            }
+
+            namen += qualifikation.Name;
+        }
+
+        if (namen == string.Empty)
+        {
+            return "Keine Qualifikationen";
+        }
+
+        return namen;
+    }
+
+    private bool QualifikationPasst(Mitarbeiter mitarbeiter)
+    {
+        if (auftrag == null)
+        {
+            return false;
+        }
+
+        foreach (var benoetigteQualifikation in auftrag.Qualifikationen)
+        {
+            var gefunden = false;
+
+            foreach (var qualifikation in mitarbeiter.Qualifikationen)
+            {
+                if (qualifikation.Id == benoetigteQualifikation.Id)
+                {
+                    gefunden = true;
+                    break;
+                }
+            }
+
+            if (!gefunden)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private string FehlendeQualifikationen(Mitarbeiter mitarbeiter)
+    {
+        var fehlendeNamen = string.Empty;
+
+        if (auftrag == null)
+        {
+            return fehlendeNamen;
+        }
+
+        foreach (var benoetigteQualifikation in auftrag.Qualifikationen)
+        {
+            var gefunden = false;
+
+            foreach (var qualifikation in mitarbeiter.Qualifikationen)
+            {
+                if (qualifikation.Id == benoetigteQualifikation.Id)
+                {
+                    gefunden = true;
+                    break;
+                }
+            }
+
+            if (!gefunden)
+            {
+                if (fehlendeNamen != string.Empty)
+                {
+                    fehlendeNamen += ", ";
+                }
+
+                fehlendeNamen += benoetigteQualifikation.Name;
+            }
+        }
+
+        return fehlendeNamen;
+    }
+
+    private string Verfuegbarkeit(int mitarbeiterId)
+    {
+        if (verfuegbarkeiten.TryGetValue(mitarbeiterId, out var verfuegbarkeit))
+        {
+            return verfuegbarkeit;
+        }
+
+        return "Nicht verfügbar";
+    }
+
+    private void ZuweisungOeffnen()
+    {
+        mitarbeitersuche = string.Empty;
+        verfuegbarkeitsfilter = "Alle";
+        ausgewaehlteMitarbeiterIds.Clear();
+
+        if (auftrag != null)
+        {
+            foreach (var mitarbeiter in auftrag.Mitarbeiter)
+            {
+                ausgewaehlteMitarbeiterIds.Add(mitarbeiter.Id);
+            }
+        }
+
+        zuweisungSichtbar = true;
+    }
+
+    private void MitarbeitersucheGeaendert(ChangeEventArgs e)
+    {
+        mitarbeitersuche = e.Value?.ToString() ?? string.Empty;
+    }
+
+    private void VerfuegbarkeitsfilterGeaendert(ChangeEventArgs e)
+    {
+        verfuegbarkeitsfilter = e.Value?.ToString() ?? "Alle";
+    }
+
+    private List<Mitarbeiter> GefilterteMitarbeiter()
+    {
+        var gefilterteMitarbeiter = new List<Mitarbeiter>();
+
+        foreach (var mitarbeiter in mitarbeiterListe)
+        {
+            var passtZurSuche = mitarbeitersuche == string.Empty
+                || mitarbeiter.Vorname.Contains(mitarbeitersuche, StringComparison.OrdinalIgnoreCase)
+                || mitarbeiter.Nachname.Contains(mitarbeitersuche, StringComparison.OrdinalIgnoreCase)
+                || mitarbeiter.Personalnummer.Contains(mitarbeitersuche, StringComparison.OrdinalIgnoreCase)
+                || MitarbeiterQualifikationen(mitarbeiter).Contains(
+                    mitarbeitersuche,
+                    StringComparison.OrdinalIgnoreCase);
+
+            var istVerfuegbar = Verfuegbarkeit(mitarbeiter.Id) == "Verfügbar";
+            var passtZumFilter = verfuegbarkeitsfilter == "Alle";
+
+            if (verfuegbarkeitsfilter == "Verfügbar" && istVerfuegbar)
+            {
+                passtZumFilter = true;
+            }
+
+            if (verfuegbarkeitsfilter == "Nicht verfügbar" && !istVerfuegbar)
+            {
+                passtZumFilter = true;
+            }
+
+            if (passtZurSuche && passtZumFilter)
+            {
+                gefilterteMitarbeiter.Add(mitarbeiter);
+            }
+        }
+
+        if (auftrag == null)
+        {
+            return gefilterteMitarbeiter;
+        }
+
+        return AuftragService.MitarbeiterSortieren(auftrag, gefilterteMitarbeiter, verfuegbarkeiten);
+    }
+
+    private int AnzahlPassenderQualifikationen(Mitarbeiter mitarbeiter)
+    {
+        if (auftrag == null)
+        {
+            return 0;
+        }
+
+        return AuftragService.AnzahlPassenderQualifikationen(auftrag, mitarbeiter);
+    }
+
+    private string PassendeQualifikationenText(Mitarbeiter mitarbeiter)
+    {
+        if (auftrag == null || auftrag.Qualifikationen.Count == 0)
+        {
+            return "Keine Qualifikation erforderlich";
+        }
+
+        return AnzahlPassenderQualifikationen(mitarbeiter)
+            + " von "
+            + auftrag.Qualifikationen.Count
+            + " passend";
+    }
+
+    private void MitarbeiterAuswahlWechseln(int mitarbeiterId)
+    {
+        if (ausgewaehlteMitarbeiterIds.Contains(mitarbeiterId))
+        {
+            ausgewaehlteMitarbeiterIds.Remove(mitarbeiterId);
+        }
+        else
+        {
+            ausgewaehlteMitarbeiterIds.Add(mitarbeiterId);
+        }
+    }
+
+    private bool IstAusgewaehlt(int mitarbeiterId)
+    {
+        return ausgewaehlteMitarbeiterIds.Contains(mitarbeiterId);
+    }
+
+    private async Task MitarbeiterZuweisen()
+    {
+        await AuftragService.MitarbeiterZuweisenAsync(Id, ausgewaehlteMitarbeiterIds);
+        zuweisungSichtbar = false;
+        await DatenLaden();
+    }
+
+    private void ZuweisungAbbrechen()
+    {
+        ausgewaehlteMitarbeiterIds.Clear();
+        zuweisungSichtbar = false;
+    }
+
+    private void EntfernenBestaetigen(Mitarbeiter mitarbeiter)
+    {
+        zuEntfernenderMitarbeiter = mitarbeiter;
+    }
+
+    private void EntfernenAbbrechen()
+    {
+        zuEntfernenderMitarbeiter = null;
+    }
+
+    private async Task MitarbeiterEndgueltigEntfernen()
+    {
+        if (zuEntfernenderMitarbeiter == null)
+        {
+            return;
+        }
+
+        var mitarbeiterId = zuEntfernenderMitarbeiter.Id;
+        zuEntfernenderMitarbeiter = null;
+        await AuftragService.MitarbeiterEntfernenAsync(Id, mitarbeiterId);
+        await DatenLaden();
+    }
+
+    private void LoeschenBestaetigen()
+    {
+        loeschenBestaetigen = true;
+    }
+
+    private void LoeschenAbbrechen()
+    {
+        loeschenBestaetigen = false;
+    }
+
+    private async Task EndgueltigLoeschen()
+    {
+        await AuftragService.DeleteAsync(Id);
         Navigation.NavigateTo("/auftraege");
     }
-
 }

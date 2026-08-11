@@ -17,6 +17,36 @@ namespace HRomance.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.8");
 
+            modelBuilder.Entity("AuftragMitarbeiter", b =>
+                {
+                    b.Property<int>("AuftraegeId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("MitarbeiterId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("AuftraegeId", "MitarbeiterId");
+
+                    b.HasIndex("MitarbeiterId");
+
+                    b.ToTable("AuftragMitarbeiter");
+                });
+
+            modelBuilder.Entity("AuftragQualifikation", b =>
+                {
+                    b.Property<int>("AuftraegeId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("QualifikationenId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("AuftraegeId", "QualifikationenId");
+
+                    b.HasIndex("QualifikationenId");
+
+                    b.ToTable("AuftragQualifikation");
+                });
+
             modelBuilder.Entity("HRomance.Data.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
@@ -80,6 +110,70 @@ namespace HRomance.Migrations
                         .HasDatabaseName("UserNameIndex");
 
                     b.ToTable("AspNetUsers", (string)null);
+                });
+
+            modelBuilder.Entity("HRomance.Models.Abwesenheit", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("Bis")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Grund")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("MitarbeiterId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Typ")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("Von")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MitarbeiterId");
+
+                    b.ToTable("Abwesenheiten");
+                });
+
+            modelBuilder.Entity("HRomance.Models.Arbeitszeit", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<TimeOnly>("Beginn")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("Datum")
+                        .HasColumnType("TEXT");
+
+                    b.Property<TimeOnly>("Ende")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("MitarbeiterId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Notiz")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("PauseMinuten")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MitarbeiterId");
+
+                    b.ToTable("Arbeitszeiten");
                 });
 
             modelBuilder.Entity("HRomance.Models.Auftrag", b =>
@@ -172,6 +266,9 @@ namespace HRomance.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<double>("SollStundenProTag")
+                        .HasColumnType("REAL");
+
                     b.Property<string>("Telefon")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -186,6 +283,21 @@ namespace HRomance.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Mitarbeiter");
+                });
+
+            modelBuilder.Entity("HRomance.Models.Qualifikation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Qualifikationen");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -337,6 +449,73 @@ namespace HRomance.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("MitarbeiterQualifikation", b =>
+                {
+                    b.Property<int>("MitarbeiterId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("QualifikationenId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("MitarbeiterId", "QualifikationenId");
+
+                    b.HasIndex("QualifikationenId");
+
+                    b.ToTable("MitarbeiterQualifikation");
+                });
+
+            modelBuilder.Entity("AuftragMitarbeiter", b =>
+                {
+                    b.HasOne("HRomance.Models.Auftrag", null)
+                        .WithMany()
+                        .HasForeignKey("AuftraegeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("HRomance.Models.Mitarbeiter", null)
+                        .WithMany()
+                        .HasForeignKey("MitarbeiterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AuftragQualifikation", b =>
+                {
+                    b.HasOne("HRomance.Models.Auftrag", null)
+                        .WithMany()
+                        .HasForeignKey("AuftraegeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("HRomance.Models.Qualifikation", null)
+                        .WithMany()
+                        .HasForeignKey("QualifikationenId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("HRomance.Models.Abwesenheit", b =>
+                {
+                    b.HasOne("HRomance.Models.Mitarbeiter", "Mitarbeiter")
+                        .WithMany()
+                        .HasForeignKey("MitarbeiterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Mitarbeiter");
+                });
+
+            modelBuilder.Entity("HRomance.Models.Arbeitszeit", b =>
+                {
+                    b.HasOne("HRomance.Models.Mitarbeiter", "Mitarbeiter")
+                        .WithMany()
+                        .HasForeignKey("MitarbeiterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Mitarbeiter");
+                });
+
             modelBuilder.Entity("HRomance.Models.Auftrag", b =>
                 {
                     b.HasOne("HRomance.Models.Kunde", "Kunde")
@@ -446,6 +625,21 @@ namespace HRomance.Migrations
                     b.HasOne("HRomance.Data.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MitarbeiterQualifikation", b =>
+                {
+                    b.HasOne("HRomance.Models.Mitarbeiter", null)
+                        .WithMany()
+                        .HasForeignKey("MitarbeiterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("HRomance.Models.Qualifikation", null)
+                        .WithMany()
+                        .HasForeignKey("QualifikationenId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

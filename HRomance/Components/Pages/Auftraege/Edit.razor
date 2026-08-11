@@ -6,123 +6,246 @@
 
 @inject AuftragService AuftragService
 @inject KundeService KundeService
+@inject QualifikationService QualifikationService
 @inject NavigationManager Navigation
 
 <PageTitle>Auftrag bearbeiten</PageTitle>
 
-<h3>Auftrag bearbeiten</h3>
-
-@if (auftrag == null)
-{
-    <p>Lade Daten...</p>
-}
-else
-{
-    <EditForm Model="auftrag" OnValidSubmit="Speichern">
-        <DataAnnotationsValidator />
-        <ValidationSummary />
-
-        <div class="mb-3">
-            <label class="form-label">Titel</label>
-            <InputText class="form-control"
-                       @bind-Value="auftrag.Titel" />
+<div class="edit-page">
+    <div class="page-header">
+        <div>
+            <h1>Auftrag bearbeiten</h1>
+            <p>Auftragsdaten aktualisieren</p>
         </div>
 
-        <div class="mb-3">
-            <label class="form-label">Beschreibung</label>
-            <InputText class="form-control"
-                       @bind-Value="auftrag.Beschreibung" />
+        <a href="/auftraege/details/@Id" class="back-button">Zurück</a>
+    </div>
+
+    @if (!istGeladen)
+    {
+        <p>Lade Daten...</p>
+    }
+    else if (auftrag == null)
+    {
+        <div class="message-card">
+            Auftrag wurde nicht gefunden.
         </div>
-
-        <div class="mb-3">
-            <label class="form-label">Einsatzort</label>
-            <InputText class="form-control"
-                       @bind-Value="auftrag.Einsatzort" />
+    }
+    else if (kundenListe.Count == 0)
+    {
+        <div class="message-card">
+            Es sind keine Kunden für die Auswahl vorhanden.
         </div>
+    }
+    else
+    {
+        <div class="form-card">
+            <EditForm Model="auftrag"
+                      OnValidSubmit="Speichern"
+                      FormName="AuftragBearbeiten">
+                <DataAnnotationsValidator />
 
-        <div class="mb-3">
-            <label class="form-label">Benötigte Qualifikation</label>
-            <InputText class="form-control"
-                       @bind-Value="auftrag.BenoetigteQualifikation" />
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Titel</label>
+                        <InputText class="form-input" @bind-Value="auftrag.Titel" />
+                        <ValidationMessage For="@(() => auftrag.Titel)" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Einsatzort</label>
+                        <InputText class="form-input" @bind-Value="auftrag.Einsatzort" />
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label>Beschreibung</label>
+                        <InputTextArea class="form-input description-input" @bind-Value="auftrag.Beschreibung" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Kunde</label>
+                        <InputSelect class="form-input" @bind-Value="auftrag.KundeId">
+                            @foreach (var kunde in kundenListe)
+                            {
+                                <option value="@kunde.Id">@kunde.Firmenname</option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Startdatum</label>
+                        <InputDate class="form-input" @bind-Value="auftrag.Startdatum" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Enddatum</label>
+                        <InputDate class="form-input" @bind-Value="auftrag.Enddatum" />
+                    </div>
+                </div>
+
+                <div class="qualifikationen-group">
+                    <h2>Benötigte Qualifikationen</h2>
+
+                    @if (qualifikationen.Count == 0)
+                    {
+                        <p>Es sind noch keine Qualifikationen vorhanden.</p>
+                    }
+                    else
+                    {
+                        <input class="qualification-search"
+                               type="text"
+                               placeholder="Qualifikation suchen..."
+                               value="@qualifikationssuche"
+                               @oninput="SucheGeaendert" />
+
+                        <div class="qualification-list">
+                            @foreach (var qualifikation in qualifikationen)
+                            {
+                                @if (qualifikation.Name.Contains(
+                                    qualifikationssuche,
+                                    StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <label class="qualification-option">
+                                        <input type="checkbox"
+                                               checked="@IstAusgewaehlt(qualifikation.Id)"
+                                               @onchange="() => QualifikationWechseln(qualifikation.Id)" />
+                                        @qualifikation.Name
+                                    </label>
+                                }
+                            }
+                        </div>
+
+                        <div class="selected-qualifications">
+                            @if (ausgewaehlteQualifikationIds.Count == 0)
+                            {
+                                <p>Keine Qualifikation ausgewählt.</p>
+                            }
+                            else
+                            {
+                                <strong>Ausgewählt:</strong>
+                                <div>@AusgewaehlteNamen()</div>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <div class="form-actions">
+                    <button type="button"
+                            class="cancel-button"
+                            @onclick="Abbrechen">
+                        Abbrechen
+                    </button>
+
+                    <button type="submit" class="save-button">
+                        Änderungen speichern
+                    </button>
+                </div>
+            </EditForm>
         </div>
-
-        <div class="mb-3">
-            <label class="form-label">Startdatum</label>
-            <InputDate class="form-control"
-                       @bind-Value="auftrag.Startdatum" />
-        </div>
-
-        <div class="mb-3">
-            <label class="form-label">Enddatum</label>
-            <InputDate class="form-control"
-                       @bind-Value="auftrag.Enddatum" />
-        </div>
-
-        <div class="mb-3">
-            <label class="form-label">Kunde</label>
-
-            <InputSelect class="form-select"
-                         @bind-Value="auftrag.KundeId">
-
-                @foreach (var kunde in kundenListe)
-                {
-                    <option value="@kunde.Id">
-                        @kunde.Firmenname
-                    </option>
-                }
-
-            </InputSelect>
-        </div>
-
-        <div class="form-check mb-3">
-            <InputCheckbox class="form-check-input"
-                           @bind-Value="auftrag.Besetzt" />
-
-            <label class="form-check-label">
-                Auftrag besetzt
-            </label>
-        </div>
-
-        <button type="submit" class="btn btn-success me-2">
-            Speichern
-        </button>
-
-        <button type="button"
-                class="btn btn-secondary"
-                @onclick="Zurueck">
-            Abbrechen
-        </button>
-
-    </EditForm>
-}
+    }
+</div>
 
 @code {
-
     [Parameter]
     public int Id { get; set; }
 
     private Auftrag? auftrag;
-
-    private List<Kunde> kundenListe = new();
+    private List<Kunde> kundenListe = new List<Kunde>();
+    private List<Qualifikation> qualifikationen = new List<Qualifikation>();
+    private List<int> ausgewaehlteQualifikationIds = new List<int>();
+    private string qualifikationssuche = string.Empty;
+    private bool istGeladen;
 
     protected override async Task OnInitializedAsync()
     {
         kundenListe = await KundeService.GetAllAsync();
-        auftrag = await AuftragService.GetByIdAsync(Id);
+        qualifikationen = await QualifikationService.GetAllAsync();
+        var geladenerAuftrag = await AuftragService.GetByIdAsync(Id);
+
+        if (geladenerAuftrag != null)
+        {
+            auftrag = new Auftrag
+            {
+                Id = geladenerAuftrag.Id,
+                Titel = geladenerAuftrag.Titel,
+                Beschreibung = geladenerAuftrag.Beschreibung,
+                Einsatzort = geladenerAuftrag.Einsatzort,
+                BenoetigteQualifikation = geladenerAuftrag.BenoetigteQualifikation,
+                Startdatum = geladenerAuftrag.Startdatum,
+                Enddatum = geladenerAuftrag.Enddatum,
+                KundeId = geladenerAuftrag.KundeId
+            };
+
+            foreach (var qualifikation in geladenerAuftrag.Qualifikationen)
+            {
+                ausgewaehlteQualifikationIds.Add(qualifikation.Id);
+            }
+        }
+
+        istGeladen = true;
+    }
+
+    private void SucheGeaendert(ChangeEventArgs e)
+    {
+        qualifikationssuche = e.Value?.ToString() ?? string.Empty;
+    }
+
+    private bool IstAusgewaehlt(int id)
+    {
+        return ausgewaehlteQualifikationIds.Contains(id);
+    }
+
+    private void QualifikationWechseln(int id)
+    {
+        if (ausgewaehlteQualifikationIds.Contains(id))
+        {
+            ausgewaehlteQualifikationIds.Remove(id);
+        }
+        else
+        {
+            ausgewaehlteQualifikationIds.Add(id);
+        }
+    }
+
+    private string AusgewaehlteNamen()
+    {
+        string namen = string.Empty;
+
+        foreach (var qualifikation in qualifikationen)
+        {
+            if (IstAusgewaehlt(qualifikation.Id))
+            {
+                if (namen != string.Empty)
+                {
+                    namen += ", ";
+                }
+
+                namen += qualifikation.Name;
+            }
+        }
+
+        return namen;
     }
 
     private async Task Speichern()
     {
-        if (auftrag != null)
+        if (auftrag != null && auftrag.KundeId != 0)
         {
+            foreach (var qualifikation in qualifikationen)
+            {
+                if (IstAusgewaehlt(qualifikation.Id))
+                {
+                    auftrag.Qualifikationen.Add(qualifikation);
+                }
+            }
+
             await AuftragService.UpdateAsync(auftrag);
-            Navigation.NavigateTo("/auftraege");
+            Navigation.NavigateTo($"/auftraege/details/{auftrag.Id}");
         }
     }
 
-    private void Zurueck()
+    private void Abbrechen()
     {
-        Navigation.NavigateTo("/auftraege");
+        Navigation.NavigateTo($"/auftraege/details/{Id}");
     }
-
 }

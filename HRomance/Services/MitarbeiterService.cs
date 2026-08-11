@@ -16,13 +16,59 @@ namespace HRomance.Services
         // Alle Mitarbeiter laden
         public async Task<List<Mitarbeiter>> GetAllAsync()
         {
-            return await _context.Mitarbeiter.ToListAsync();
+            return await _context.Mitarbeiter
+                .Include(m => m.Qualifikationen)
+                .ToListAsync();
         }
 
         // Mitarbeiter anhand der ID laden
         public async Task<Mitarbeiter?> GetByIdAsync(int id)
         {
-            return await _context.Mitarbeiter.FindAsync(id);
+            return await _context.Mitarbeiter
+                .Include(m => m.Qualifikationen)
+                .FirstOrDefaultAsync(m => m.Id == id);
+        }
+
+        public bool PasstZurSuche(Mitarbeiter mitarbeiter, string suche)
+        {
+            if (string.IsNullOrWhiteSpace(suche))
+            {
+                return true;
+            }
+
+            var suchtext = suche.Trim();
+
+            if (mitarbeiter.Vorname.Contains(suchtext, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (mitarbeiter.Nachname.Contains(suchtext, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            var vollstaendigerName = mitarbeiter.Vorname + " " + mitarbeiter.Nachname;
+
+            if (vollstaendigerName.Contains(suchtext, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (mitarbeiter.Personalnummer.Contains(suchtext, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            foreach (var qualifikation in mitarbeiter.Qualifikationen)
+            {
+                if (qualifikation.Name.Contains(suchtext, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         // Neuen Mitarbeiter hinzufügen
@@ -35,8 +81,30 @@ namespace HRomance.Services
         // Mitarbeiter bearbeiten
         public async Task UpdateAsync(Mitarbeiter mitarbeiter)
         {
-            _context.Mitarbeiter.Update(mitarbeiter);
-            await _context.SaveChangesAsync();
+            var vorhandenerMitarbeiter = await _context.Mitarbeiter
+                .Include(m => m.Qualifikationen)
+                .FirstOrDefaultAsync(m => m.Id == mitarbeiter.Id);
+
+            if (vorhandenerMitarbeiter != null)
+            {
+                vorhandenerMitarbeiter.Personalnummer = mitarbeiter.Personalnummer;
+                vorhandenerMitarbeiter.Vorname = mitarbeiter.Vorname;
+                vorhandenerMitarbeiter.Nachname = mitarbeiter.Nachname;
+                vorhandenerMitarbeiter.Email = mitarbeiter.Email;
+                vorhandenerMitarbeiter.Telefon = mitarbeiter.Telefon;
+                vorhandenerMitarbeiter.Qualifikation = mitarbeiter.Qualifikation;
+                vorhandenerMitarbeiter.Verfuegbar = mitarbeiter.Verfuegbar;
+                vorhandenerMitarbeiter.SollStundenProTag = mitarbeiter.SollStundenProTag;
+
+                vorhandenerMitarbeiter.Qualifikationen.Clear();
+
+                foreach (var qualifikation in mitarbeiter.Qualifikationen)
+                {
+                    vorhandenerMitarbeiter.Qualifikationen.Add(qualifikation);
+                }
+
+                await _context.SaveChangesAsync();
+            }
         }
 
         // Mitarbeiter löschen

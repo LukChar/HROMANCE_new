@@ -1,85 +1,180 @@
 ﻿@page "/disposition"
 @rendermode InteractiveServer
 
-@inject NavigationManager Navigation
+@using HRomance.Models
+@using HRomance.Services
+@using HRomance.Components.Pages.Auftraege
+
+@inject AuftragService AuftragService
 
 <PageTitle>Disposition</PageTitle>
 
-<h3>Disposition</h3>
+<div class="disposition-page">
+    <div class="page-header">
+        <div>
+            <h1>Disposition</h1>
+            <p>Wochenplanung der Aufträge</p>
+        </div>
 
-<div class="row">
-
-    <div class="col-md-4 mb-3">
-        <div class="card">
-            <div class="card-body">
-
-                <h5 class="card-title">Tagesplan</h5>
-
-                <p class="card-text">
-                    Zeigt alle Aufträge des heutigen Tages.
-                </p>
-
-                <button class="btn btn-primary" @onclick="Tagesplan">
-                    Öffnen
-                </button>
-
-            </div>
+        <div class="view-switch">
+            <a href="/disposition" class="active-view">Woche</a>
+            <a href="/disposition/monatsplan">Monat</a>
         </div>
     </div>
 
-    <div class="col-md-4 mb-3">
-        <div class="card">
-            <div class="card-body">
-
-                <h5 class="card-title">Wochenplan</h5>
-
-                <p class="card-text">
-                    Zeigt alle Aufträge der nächsten 7 Tage.
-                </p>
-
-                <button class="btn btn-primary" @onclick="Wochenplan">
-                    Öffnen
-                </button>
-
-            </div>
-        </div>
+    <div class="week-navigation">
+        <button type="button" @onclick="VorherigeWoche">Zurück</button>
+        <strong>@Wochenzeitraum()</strong>
+        <button type="button" @onclick="NaechsteWoche">Weiter</button>
+        <button type="button" @onclick="AktuelleWoche">Heute</button>
     </div>
 
-    <div class="col-md-4 mb-3">
-        <div class="card">
-            <div class="card-body">
+    <div class="week-plan">
+        @foreach (var datum in Wochentage())
+        {
+            var auftraegeAmTag = AuftraegeAmTag(datum);
 
-                <h5 class="card-title">Monatsplan</h5>
+            <section class="day-section">
+                <h2>@Tagesueberschrift(datum)</h2>
 
-                <p class="card-text">
-                    Zeigt alle Aufträge des aktuellen Monats.
-                </p>
-
-                <button class="btn btn-primary" @onclick="Monatsplan">
-                    Öffnen
-                </button>
-
-            </div>
-        </div>
+                @if (auftraegeAmTag.Count == 0)
+                {
+                    <p class="empty-message">Keine Aufträge</p>
+                }
+                else
+                {
+                    <div class="order-list">
+                        @foreach (var auftrag in auftraegeAmTag)
+                        {
+                            <button type="button" class="order-card" @onclick="() => AuftragOeffnen(auftrag)">
+                                <strong>@auftrag.Titel</strong>
+                                <span>@(auftrag.Kunde?.Firmenname ?? "Kein Kunde")</span>
+                                <span>@auftrag.Startdatum.ToString("dd.MM.") - @auftrag.Enddatum.ToString("dd.MM.yyyy")</span>
+                                <span>@(auftrag.Mitarbeiter.Count > 0 ? "Besetzt" : "Offen")@MitarbeiterText(auftrag)</span>
+                            </button>
+                        }
+                    </div>
+                }
+            </section>
+        }
     </div>
-
 </div>
 
+@if (ausgewaehlterAuftrag != null)
+{
+    <AuftragPopup Auftrag="@ausgewaehlterAuftrag"
+                   Aktualisiert="DatenLaden"
+                   Geschlossen="PopupSchliessen" />
+}
+
 @code {
+    private List<Auftrag> auftraege = new();
+    private DateTime wochenbeginn = MontagDerWoche(DateTime.Today);
+    private Auftrag? ausgewaehlterAuftrag;
 
-    private void Tagesplan()
+    protected override async Task OnInitializedAsync()
     {
-        Navigation.NavigateTo("/disposition/tagesplan");
+        await DatenLaden();
     }
 
-    private void Wochenplan()
+    private async Task DatenLaden()
     {
-        Navigation.NavigateTo("/disposition/wochenplan");
+        auftraege = await AuftragService.GetAllAsync();
     }
 
-    private void Monatsplan()
+    private static DateTime MontagDerWoche(DateTime datum)
     {
-        Navigation.NavigateTo("/disposition/monatsplan");
+        var abstand = (int)datum.DayOfWeek - (int)DayOfWeek.Monday;
+
+        if (abstand < 0)
+        {
+            abstand = 6;
+        }
+
+        return datum.Date.AddDays(-abstand);
     }
 
+    private List<DateTime> Wochentage()
+    {
+        var tage = new List<DateTime>();
+
+        for (var tag = 0; tag < 7; tag++)
+        {
+            tage.Add(wochenbeginn.AddDays(tag));
+        }
+
+        return tage;
+    }
+
+    private List<Auftrag> AuftraegeAmTag(DateTime datum)
+    {
+        var passendeAuftraege = new List<Auftrag>();
+
+        foreach (var auftrag in auftraege)
+        {
+            if (datum.Date >= auftrag.Startdatum.Date && datum.Date <= auftrag.Enddatum.Date)
+            {
+                passendeAuftraege.Add(auftrag);
+            }
+        }
+
+        return passendeAuftraege;
+    }
+
+    private void VorherigeWoche()
+    {
+        wochenbeginn = wochenbeginn.AddDays(-7);
+    }
+
+    private void NaechsteWoche()
+    {
+        wochenbeginn = wochenbeginn.AddDays(7);
+    }
+
+    private void AktuelleWoche()
+    {
+        wochenbeginn = MontagDerWoche(DateTime.Today);
+    }
+
+    private string Wochenzeitraum()
+    {
+        return wochenbeginn.ToString("dd.MM.") + " - " + wochenbeginn.AddDays(6).ToString("dd.MM.yyyy");
+    }
+
+    private string Tagesueberschrift(DateTime datum)
+    {
+        return datum.ToString("dddd, dd.MM.", System.Globalization.CultureInfo.GetCultureInfo("de-DE"));
+    }
+
+    private string MitarbeiterText(Auftrag auftrag)
+    {
+        var namen = string.Empty;
+
+        foreach (var mitarbeiter in auftrag.Mitarbeiter)
+        {
+            if (namen != string.Empty)
+            {
+                namen += ", ";
+            }
+
+            namen += mitarbeiter.Vorname + " " + mitarbeiter.Nachname;
+        }
+
+        if (namen == string.Empty)
+        {
+            return string.Empty;
+        }
+
+        return " · " + namen;
+    }
+
+    private void AuftragOeffnen(Auftrag auftrag)
+    {
+        ausgewaehlterAuftrag = auftrag;
+    }
+
+    private void PopupSchliessen()
+    {
+        ausgewaehlterAuftrag = null;
+    }
 }

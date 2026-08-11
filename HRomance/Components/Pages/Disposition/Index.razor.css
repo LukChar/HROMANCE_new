@@ -1,0 +1,124 @@
+.disposition-page {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 22px;
+}
+
+.page-header h1 {
+    margin: 0;
+    color: #202124;
+    font-size: 30px;
+    font-weight: 600;
+}
+
+.page-header p {
+    margin: 6px 0 0;
+    color: #6b7280;
+}
+
+.view-switch {
+    display: flex;
+    gap: 8px;
+}
+
+.view-switch a,
+.week-navigation button {
+    padding: 8px 14px;
+    border: 1px solid #cfd4da;
+    border-radius: 6px;
+    color: #30343b;
+    background-color: white;
+    font-size: 14px;
+    text-decoration: none;
+}
+
+.view-switch .active-view {
+    border-color: #2563eb;
+    color: white;
+    background-color: #2563eb;
+}
+
+.week-navigation {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.week-navigation strong {
+    min-width: 190px;
+    color: #30343b;
+    text-align: center;
+}
+
+.week-plan {
+    border: 1px solid #e2e5e9;
+    border-radius: 8px;
+    background-color: white;
+}
+
+.day-section {
+    padding: 16px 18px;
+    border-bottom: 1px solid #e2e5e9;
+}
+
+.day-section:last-child {
+    border-bottom: none;
+}
+
+.day-section h2 {
+    margin: 0 0 11px;
+    color: #30343b;
+    font-size: 17px;
+    font-weight: 600;
+}
+
+.empty-message {
+    margin: 0;
+    color: #8a9099;
+    font-size: 14px;
+}
+
+.order-list {
+    display: grid;
+    gap: 8px;
+}
+
+.order-card {
+    display: grid;
+    grid-template-columns: minmax(180px, 1.4fr) minmax(140px, 1fr) minmax(160px, 1fr) minmax(150px, 1fr);
+    gap: 12px;
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #e2e5e9;
+    border-radius: 6px;
+    color: #30343b;
+    background-color: #f8f9fa;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.order-card:hover {
+    background-color: #f1f3f5;
+}
+
+@media (max-width: 760px) {
+    .page-header,
+    .week-navigation {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .order-card {
+        grid-template-columns: 1fr;
+        gap: 3px;
+    }
+}

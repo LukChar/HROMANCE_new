@@ -3,12 +3,16 @@
 
 @using HRomance.Models
 @using HRomance.Services
+@using HRomance.Components.Pages.Auftraege
 
 @inject AuftragService AuftragService
 
 <PageTitle>Wochenplan</PageTitle>
 
-<h3>Wochenplan</h3>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0">Wochenplan</h3>
+    <a href="/disposition" class="btn btn-outline-secondary">Zurück</a>
+</div>
 
 @if (!auftraege.Any())
 {
@@ -36,7 +40,7 @@ else
 
             @foreach (var auftrag in auftraege)
             {
-                <tr>
+                <tr style="cursor: pointer;" @onclick="() => AuftragOeffnen(auftrag)">
                     <td>@auftrag.Titel</td>
                     <td>@auftrag.Kunde?.Firmenname</td>
                     <td>@auftrag.Einsatzort</td>
@@ -45,7 +49,7 @@ else
                     <td>@auftrag.Enddatum.ToShortDateString()</td>
 
                     <td>
-                        @if (auftrag.Besetzt)
+                        @if (auftrag.Mitarbeiter.Count > 0)
                         {
                             <span class="badge bg-success">Besetzt</span>
                         }
@@ -62,11 +66,24 @@ else
     </table>
 }
 
+@if (ausgewaehlterAuftrag != null)
+{
+    <AuftragPopup Auftrag="@ausgewaehlterAuftrag"
+                   Aktualisiert="DatenLaden"
+                   Geschlossen="PopupSchliessen" />
+}
+
 @code {
 
     private List<Auftrag> auftraege = new();
+    private Auftrag? ausgewaehlterAuftrag;
 
     protected override async Task OnInitializedAsync()
+    {
+        await DatenLaden();
+    }
+
+    private async Task DatenLaden()
     {
         var alleAuftraege = await AuftragService.GetAllAsync();
 
@@ -78,6 +95,16 @@ else
                         a.Startdatum.Date <= ende)
             .OrderBy(a => a.Startdatum)
             .ToList();
+    }
+
+    private void AuftragOeffnen(Auftrag auftrag)
+    {
+        ausgewaehlterAuftrag = auftrag;
+    }
+
+    private void PopupSchliessen()
+    {
+        ausgewaehlterAuftrag = null;
     }
 
 }

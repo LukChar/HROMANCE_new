@@ -1,0 +1,141 @@
+using HRomance.Data;
+using HRomance.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace HRomance.Services;
+
+public class AbwesenheitService
+{
+    private readonly ApplicationDbContext _context;
+
+    public AbwesenheitService(ApplicationDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<List<Abwesenheit>> GetAllAsync()
+    {
+        return await _context.Abwesenheiten
+            .Include(a => a.Mitarbeiter)
+            .ToListAsync();
+    }
+
+    public async Task<Abwesenheit?> GetByIdAsync(int id)
+    {
+        return await _context.Abwesenheiten
+            .Include(a => a.Mitarbeiter)
+            .FirstOrDefaultAsync(a => a.Id == id);
+    }
+
+    public async Task<List<Abwesenheit>> GetByMitarbeiterAsync(int mitarbeiterId)
+    {
+        return await _context.Abwesenheiten
+            .Include(a => a.Mitarbeiter)
+            .Where(a => a.MitarbeiterId == mitarbeiterId)
+            .ToListAsync();
+    }
+
+    public async Task AddAsync(Abwesenheit abwesenheit)
+    {
+        _context.Abwesenheiten.Add(abwesenheit);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task UpdateAsync(Abwesenheit abwesenheit)
+    {
+        var vorhandeneAbwesenheit = await _context.Abwesenheiten.FindAsync(abwesenheit.Id);
+
+        if (vorhandeneAbwesenheit != null)
+        {
+            vorhandeneAbwesenheit.MitarbeiterId = abwesenheit.MitarbeiterId;
+            vorhandeneAbwesenheit.Von = abwesenheit.Von;
+            vorhandeneAbwesenheit.Bis = abwesenheit.Bis;
+            vorhandeneAbwesenheit.Typ = abwesenheit.Typ;
+            vorhandeneAbwesenheit.Grund = abwesenheit.Grund;
+            vorhandeneAbwesenheit.Status = abwesenheit.Status;
+
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    public async Task StatusAendernAsync(int id, string neuerStatus)
+    {
+        var abwesenheit = await _context.Abwesenheiten.FindAsync(id);
+
+        if (abwesenheit != null
+            && abwesenheit.Status == "Offen"
+            && (neuerStatus == "Genehmigt" || neuerStatus == "Abgelehnt"))
+        {
+            abwesenheit.Status = neuerStatus;
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    public List<Abwesenheit> FilternUndSortieren(
+        List<Abwesenheit> antraege,
+        string suche,
+        string art,
+        string status,
+        bool neuesteZuerst)
+    {
+        var ergebnis = new List<Abwesenheit>();
+
+        foreach (var antrag in antraege)
+        {
+            var mitarbeiterName = string.Empty;
+
+            if (antrag.Mitarbeiter != null)
+            {
+                mitarbeiterName = antrag.Mitarbeiter.Vorname + " " + antrag.Mitarbeiter.Nachname;
+            }
+
+            var passtZurSuche = suche == string.Empty
+                || mitarbeiterName.Contains(suche, StringComparison.OrdinalIgnoreCase)
+                || antrag.Typ.Contains(suche, StringComparison.OrdinalIgnoreCase)
+                || (antrag.Grund?.Contains(suche, StringComparison.OrdinalIgnoreCase) == true);
+
+            var passtZurArt = art == "Alle" || antrag.Typ == art;
+            var passtZumStatus = status == "Alle" || antrag.Status == status;
+
+            if (passtZurSuche && passtZurArt && passtZumStatus)
+            {
+                ergebnis.Add(antrag);
+            }
+        }
+
+        for (var i = 0; i < ergebnis.Count - 1; i++)
+        {
+            for (var j = 0; j < ergebnis.Count - i - 1; j++)
+            {
+                var tauschen = neuesteZuerst
+                    ? ergebnis[j].Von < ergebnis[j + 1].Von
+                    : ergebnis[j].Von > ergebnis[j + 1].Von;
+
+                if (tauschen)
+                {
+                    var zwischenspeicher = ergebnis[j];
+                    ergebnis[j] = ergebnis[j + 1];
+                    ergebnis[j + 1] = zwischenspeicher;
+                }
+            }
+        }
+
+        return ergebnis;
+    }
+
+    public bool PasstZuMitarbeiter(Abwesenheit abwesenheit, int mitarbeiterId)
+    {
+        return mitarbeiterId == 0 || abwesenheit.MitarbeiterId == mitarbeiterId;
+    }
+
+    public async Task DeleteAsync(int id)
+    {
+        var abwesenheit = await _context.Abwesenheiten.FindAsync(id);
+
+        if (abwesenheit != null)
+        {
+            _context.Abwesenheiten.Remove(abwesenheit);
+            await _context.SaveChangesAsync();
+        }
+    }
+}

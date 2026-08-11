@@ -1,0 +1,96 @@
+﻿@page "/qualifikationen/edit/{Id:int}"
+@rendermode InteractiveServer
+
+@using HRomance.Models
+@using HRomance.Services
+
+@inject QualifikationService QualifikationService
+@inject NavigationManager Navigation
+
+<PageTitle>Qualifikation bearbeiten</PageTitle>
+
+<div class="edit-page">
+    <div class="page-header">
+        <div>
+            <h1>Qualifikation bearbeiten</h1>
+            <p>Qualifikation aktualisieren</p>
+        </div>
+
+        <a href="/qualifikationen" class="back-button">Zurück</a>
+    </div>
+
+    @if (!istGeladen)
+    {
+        <p>Lade Daten...</p>
+    }
+    else if (qualifikation == null)
+    {
+        <div class="message-card">
+            Qualifikation wurde nicht gefunden.
+        </div>
+    }
+    else
+    {
+        <div class="form-card">
+            <EditForm Model="qualifikation"
+                      OnValidSubmit="Speichern"
+                      FormName="QualifikationBearbeiten">
+                <DataAnnotationsValidator />
+
+                <div class="form-group">
+                    <label>Name</label>
+                    <InputText class="form-input" @bind-Value="qualifikation.Name" />
+                    <ValidationMessage For="@(() => qualifikation.Name)" />
+                </div>
+
+                <div class="form-actions">
+                    <button type="button"
+                            class="cancel-button"
+                            @onclick="Abbrechen">
+                        Abbrechen
+                    </button>
+
+                    <button type="submit" class="save-button">Speichern</button>
+                </div>
+            </EditForm>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private Qualifikation? qualifikation;
+    private bool istGeladen;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var geladeneQualifikation = await QualifikationService.GetByIdAsync(Id);
+
+        if (geladeneQualifikation != null)
+        {
+            qualifikation = new Qualifikation
+            {
+                Id = geladeneQualifikation.Id,
+                Name = geladeneQualifikation.Name
+            };
+        }
+
+        istGeladen = true;
+    }
+
+    private async Task Speichern()
+    {
+        if (qualifikation != null)
+        {
+            await QualifikationService.UpdateAsync(qualifikation);
+            Navigation.NavigateTo("/qualifikationen");
+        }
+    }
+
+    private void Abbrechen()
+    {
+        Navigation.NavigateTo("/qualifikationen");
+    }
+}

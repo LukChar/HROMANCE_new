@@ -9,6 +9,16 @@
 *.user
 *.userosscache
 *.sln.docstates
+.DS_Store
+.vscode/
+.idea/
+
+# Local SQLite database
+HRomance/Data/app.db
+HRomance/Data/*.db-shm
+HRomance/Data/*.db-wal
+HRomance/Data/*.sqlite
+HRomance/Data/*.sqlite3
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs

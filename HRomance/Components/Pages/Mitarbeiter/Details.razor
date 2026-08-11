@@ -5,6 +5,7 @@
 @using HRomance.Services
 
 @inject MitarbeiterService MitarbeiterService
+@inject ArbeitszeitService ArbeitszeitService
 @inject NavigationManager Navigation
 
 <PageTitle>Mitarbeiterdetails</PageTitle>
@@ -26,14 +27,63 @@ else
 
             <p><strong>Nachname:</strong> @mitarbeiter.Nachname</p>
 
-            <p><strong>Qualifikation:</strong> @mitarbeiter.Qualifikation</p>
+            <div class="mb-3">
+                <strong>Qualifikationen:</strong>
+
+                @if (mitarbeiter.Qualifikationen.Count == 0)
+                {
+                    <p>Keine Qualifikationen zugewiesen.</p>
+                }
+                else
+                {
+                    @foreach (var qualifikation in mitarbeiter.Qualifikationen)
+                    {
+                        <div>@qualifikation.Name</div>
+                    }
+                }
+            </div>
 
             <p><strong>Verfügbar:</strong> @(mitarbeiter.Verfuegbar ? "Ja" : "Nein")</p>
+
+            <div class="mb-3">
+                <h4>Arbeitszeit</h4>
+                <p><strong>Sollstunden pro Tag:</strong> @StundenAnzeigen(mitarbeiter.SollStundenProTag)</p>
+                <p><strong>Aktueller Monat Ist:</strong> @StundenAnzeigen(monatsIst) Std.</p>
+                <p><strong>Aktueller Monat Soll:</strong> @StundenAnzeigen(monatsSoll) Std.</p>
+                <p><strong>Saldo:</strong> @SaldoAnzeigen(monatsSaldo) Std.</p>
+            </div>
 
             <button class="btn btn-secondary"
                     @onclick="Zurueck">
                 Zurück
             </button>
+
+            <a class="btn btn-primary"
+               href="/mitarbeiter/edit/@mitarbeiter.Id">
+                Bearbeiten
+            </a>
+
+            <button class="btn btn-danger"
+                    @onclick="LoeschenBestaetigen">
+                Löschen
+            </button>
+
+            @if (loeschenBestaetigen)
+            {
+                <div class="alert alert-danger mt-3">
+                    <p>Möchtest du diesen Mitarbeiter wirklich löschen?</p>
+
+                    <button class="btn btn-secondary me-2"
+                            @onclick="LoeschenAbbrechen">
+                        Abbrechen
+                    </button>
+
+                    <button class="btn btn-danger"
+                            @onclick="EndgueltigLoeschen">
+                        Endgültig löschen
+                    </button>
+                </div>
+            }
 
         </div>
     </div>
@@ -45,15 +95,60 @@ else
     public int Id { get; set; }
 
     private Mitarbeiter? mitarbeiter;
+    private bool loeschenBestaetigen;
+    private double monatsIst;
+    private double monatsSoll;
+    private double monatsSaldo;
 
     protected override async Task OnInitializedAsync()
     {
         mitarbeiter = await MitarbeiterService.GetByIdAsync(Id);
+
+        if (mitarbeiter != null)
+        {
+            var monatswerte = await ArbeitszeitService.GetMonatswerteAsync(
+                mitarbeiter.Id,
+                DateTime.Today.Year,
+                DateTime.Today.Month,
+                mitarbeiter.SollStundenProTag);
+
+            monatsIst = monatswerte.Ist;
+            monatsSoll = monatswerte.Soll;
+            monatsSaldo = monatswerte.Saldo;
+        }
     }
 
     private void Zurueck()
     {
         Navigation.NavigateTo("/mitarbeiter");
+    }
+
+    private void LoeschenBestaetigen()
+    {
+        loeschenBestaetigen = true;
+    }
+
+    private void LoeschenAbbrechen()
+    {
+        loeschenBestaetigen = false;
+    }
+
+    private async Task EndgueltigLoeschen()
+    {
+        await MitarbeiterService.DeleteAsync(Id);
+        Navigation.NavigateTo("/mitarbeiter");
+    }
+
+    private string StundenAnzeigen(double stunden)
+    {
+        var dauer = TimeSpan.FromHours(Math.Abs(stunden));
+        return (int)dauer.TotalHours + ":" + dauer.Minutes.ToString("00");
+    }
+
+    private string SaldoAnzeigen(double stunden)
+    {
+        var vorzeichen = stunden > 0 ? "+" : stunden < 0 ? "-" : string.Empty;
+        return vorzeichen + StundenAnzeigen(stunden);
     }
 
 }
