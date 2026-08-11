@@ -47,7 +47,7 @@ else
 
             <div class="mb-3">
                 <h4>Arbeitszeit</h4>
-                <p><strong>Sollstunden pro Tag:</strong> @StundenAnzeigen(mitarbeiter.SollStundenProTag)</p>
+                <p><strong>Wochenarbeitszeit:</strong> @DezimalstundenAnzeigen(mitarbeiter.Wochenarbeitszeit) Stunden</p>
                 <p><strong>Aktueller Monat Ist:</strong> @StundenAnzeigen(monatsIst) Std.</p>
                 <p><strong>Aktueller Monat Soll:</strong> @StundenAnzeigen(monatsSoll) Std.</p>
                 <p><strong>Saldo:</strong> @SaldoAnzeigen(monatsSaldo) Std.</p>
@@ -110,7 +110,7 @@ else
                 mitarbeiter.Id,
                 DateTime.Today.Year,
                 DateTime.Today.Month,
-                mitarbeiter.SollStundenProTag);
+                mitarbeiter.Wochenarbeitszeit);
 
             monatsIst = monatswerte.Ist;
             monatsSoll = monatswerte.Soll;
@@ -149,6 +149,12 @@ else
     {
         var vorzeichen = stunden > 0 ? "+" : stunden < 0 ? "-" : string.Empty;
         return vorzeichen + StundenAnzeigen(stunden);
+    }
+
+    private string DezimalstundenAnzeigen(double stunden)
+    {
+        var kultur = System.Globalization.CultureInfo.GetCultureInfo("de-DE");
+        return stunden.ToString("0.#", kultur);
     }
 
 }

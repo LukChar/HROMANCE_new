@@ -137,8 +137,20 @@
                 @if (ausgewaehlterMitarbeiterId != 0)
                 {
                     <div class="working-time-value">
+                        <strong>@AusgewaehlterMitarbeiterName()</strong>
                         <span>@AktuellerMonat()</span>
-                        <strong>@MonatsstundenAnzeigen() Arbeitsstunden</strong>
+                        <div class="working-time-row">
+                            <span>Ist</span>
+                            <strong>@StundenAnzeigen(MonatsIst()) h</strong>
+                        </div>
+                        <div class="working-time-row">
+                            <span>Soll</span>
+                            <strong>@StundenAnzeigen(MonatsSoll()) h</strong>
+                        </div>
+                        <div class="working-time-row @SaldoKlasse()">
+                            <span>Saldo</span>
+                            <strong>@SaldoAnzeigen() h</strong>
+                        </div>
                     </div>
                 }
             </div>
@@ -223,16 +235,98 @@
         int.TryParse(e.Value?.ToString(), out ausgewaehlterMitarbeiterId);
     }
 
-    private string MonatsstundenAnzeigen()
+    private double MonatsIst()
     {
-        var stunden = ArbeitszeitService.BerechneMonatsstunden(
+        return ArbeitszeitService.BerechneMonatsstunden(
             arbeitszeiten,
             ausgewaehlterMitarbeiterId,
             DateTime.Today.Year,
             DateTime.Today.Month);
+    }
 
+    private double MonatsSoll()
+    {
+        var person = AusgewaehlterMitarbeiter();
+
+        if (person == null)
+        {
+            return 0;
+        }
+
+        return ArbeitszeitService.BerechneMonatssoll(
+            DateTime.Today.Year,
+            DateTime.Today.Month,
+            person.Wochenarbeitszeit);
+    }
+
+    private double MonatsSaldo()
+    {
+        return ArbeitszeitService.BerechneSaldo(MonatsIst(), MonatsSoll());
+    }
+
+    private string StundenAnzeigen(double stunden)
+    {
         var kultur = CultureInfo.GetCultureInfo("de-DE");
-        return Math.Round(stunden, 1).ToString("0.#", kultur);
+        return Math.Round(stunden, 1).ToString("0.0", kultur);
+    }
+
+    private string SaldoAnzeigen()
+    {
+        var saldo = MonatsSaldo();
+
+        if (saldo > 0)
+        {
+            return "+" + StundenAnzeigen(saldo);
+        }
+
+        if (saldo < 0)
+        {
+            return StundenAnzeigen(saldo);
+        }
+
+        return "0";
+    }
+
+    private string SaldoKlasse()
+    {
+        var saldo = MonatsSaldo();
+
+        if (saldo > 0)
+        {
+            return "positive-balance";
+        }
+
+        if (saldo < 0)
+        {
+            return "negative-balance";
+        }
+
+        return string.Empty;
+    }
+
+    private Mitarbeiter? AusgewaehlterMitarbeiter()
+    {
+        foreach (var person in mitarbeiter)
+        {
+            if (person.Id == ausgewaehlterMitarbeiterId)
+            {
+                return person;
+            }
+        }
+
+        return null;
+    }
+
+    private string AusgewaehlterMitarbeiterName()
+    {
+        var person = AusgewaehlterMitarbeiter();
+
+        if (person == null)
+        {
+            return string.Empty;
+        }
+
+        return MitarbeiterName(person);
     }
 
     private string AktuellerMonat()

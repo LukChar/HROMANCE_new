@@ -179,8 +179,8 @@
     display: flex;
     margin-left: auto;
     flex-direction: column;
-    align-items: flex-end;
-    gap: 3px;
+    min-width: 190px;
+    gap: 4px;
 }
 
 .working-time-value span {
@@ -190,7 +190,25 @@
 
 .working-time-value strong {
     color: #202124;
-    font-size: 20px;
+    font-size: 14px;
+}
+
+.working-time-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.working-time-row strong {
+    font-size: 14px;
+}
+
+.positive-balance strong {
+    color: #287a45;
+}
+
+.negative-balance strong {
+    color: #b54747;
 }
 
 @media (max-width: 900px) {

@@ -140,9 +140,11 @@ public class ArbeitszeitServiceTests
         await testdatenbank.ArbeitszeitHinzufuegen(mitarbeiter.Id, 11, 8, 0, 16, 30, 0);
         await testdatenbank.ArbeitszeitHinzufuegen(mitarbeiter.Id, 12, 8, 0, 15, 0, 0);
 
-        var werte = await testdatenbank.Service.GetMonatswerteAsync(mitarbeiter.Id, 2026, 8, 8);
+        var werte = await testdatenbank.Service.GetMonatswerteAsync(mitarbeiter.Id, 2026, 8, 40);
 
-        Assert.Equal(-0.5, werte.Saldo);
+        Assert.Equal(15.5, werte.Ist);
+        Assert.Equal(168, werte.Soll);
+        Assert.Equal(-152.5, werte.Saldo);
     }
 
     [Fact]
@@ -192,7 +194,7 @@ public class ArbeitszeitServiceTests
     }
 
     [Fact]
-    public async Task MonatssollBeruecksichtigtNurTageMitArbeitszeit()
+    public async Task MonatssollBeruecksichtigtAlleWerktage()
     {
         using var testdatenbank = new Testdatenbank();
         var mitarbeiter = await testdatenbank.MitarbeiterHinzufuegen();
@@ -200,9 +202,88 @@ public class ArbeitszeitServiceTests
         await testdatenbank.ArbeitszeitHinzufuegen(mitarbeiter.Id, 11, 13, 0, 17, 0, 0);
         await testdatenbank.ArbeitszeitHinzufuegen(mitarbeiter.Id, 12, 8, 0, 16, 0, 0);
 
-        var werte = await testdatenbank.Service.GetMonatswerteAsync(mitarbeiter.Id, 2026, 8, 8);
+        var werte = await testdatenbank.Service.GetMonatswerteAsync(mitarbeiter.Id, 2026, 8, 40);
 
-        Assert.Equal(16, werte.Soll);
+        Assert.Equal(168, werte.Soll);
+    }
+
+    [Fact]
+    public void VierzigWochenstundenErgebenAchtSollstundenProTag()
+    {
+        using var testdatenbank = new Testdatenbank();
+
+        var sollstunden = testdatenbank.Service.BerechneSollstundenProTag(40);
+
+        Assert.Equal(8, sollstunden);
+    }
+
+    [Fact]
+    public void AchtunddreissigKommaFuenfWochenstundenErgebenSiebenKommaSiebenProTag()
+    {
+        using var testdatenbank = new Testdatenbank();
+
+        var sollstunden = testdatenbank.Service.BerechneSollstundenProTag(38.5);
+
+        Assert.Equal(7.7, sollstunden);
+    }
+
+    [Fact]
+    public void ZwanzigWerktageErgebenHundertsechzigSollstunden()
+    {
+        using var testdatenbank = new Testdatenbank();
+
+        var sollstunden = testdatenbank.Service.BerechneMonatssoll(2026, 2, 40);
+
+        Assert.Equal(160, sollstunden);
+    }
+
+    [Fact]
+    public void MehrstundenErgebenPositivenMonatssaldo()
+    {
+        using var testdatenbank = new Testdatenbank();
+
+        var saldo = testdatenbank.Service.BerechneSaldo(168.5, 160);
+
+        Assert.Equal(8.5, saldo);
+    }
+
+    [Fact]
+    public void MinderstundenErgebenNegativenMonatssaldo()
+    {
+        using var testdatenbank = new Testdatenbank();
+
+        var saldo = testdatenbank.Service.BerechneSaldo(152.5, 160);
+
+        Assert.Equal(-7.5, saldo);
+    }
+
+    [Fact]
+    public void GleicheIstUndSollstundenErgebenNullsaldo()
+    {
+        using var testdatenbank = new Testdatenbank();
+
+        var saldo = testdatenbank.Service.BerechneSaldo(160, 160);
+
+        Assert.Equal(0, saldo);
+    }
+
+    [Fact]
+    public async Task WochenarbeitszeitWirdGespeichertUndGeladen()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var mitarbeiter = new Mitarbeiter
+        {
+            Personalnummer = Guid.NewGuid().ToString(),
+            Vorname = "Fritz",
+            Nachname = "Schreiner",
+            Wochenarbeitszeit = 38.5
+        };
+
+        await testdatenbank.MitarbeiterService.AddAsync(mitarbeiter);
+        var gespeichert = await testdatenbank.MitarbeiterService.GetByIdAsync(mitarbeiter.Id);
+
+        Assert.NotNull(gespeichert);
+        Assert.Equal(38.5, gespeichert.Wochenarbeitszeit);
     }
 
     private static Arbeitszeit NeueArbeitszeit(
@@ -227,6 +308,7 @@ public class ArbeitszeitServiceTests
         private readonly ApplicationDbContext context;
 
         public ArbeitszeitService Service { get; }
+        public MitarbeiterService MitarbeiterService { get; }
 
         public Testdatenbank()
         {
@@ -240,6 +322,7 @@ public class ArbeitszeitServiceTests
             context = new ApplicationDbContext(optionen);
             context.Database.EnsureCreated();
             Service = new ArbeitszeitService(context);
+            MitarbeiterService = new MitarbeiterService(context);
         }
 
         public async Task<Mitarbeiter> MitarbeiterHinzufuegen()
@@ -249,7 +332,8 @@ public class ArbeitszeitServiceTests
                 Personalnummer = Guid.NewGuid().ToString(),
                 Vorname = "Test",
                 Nachname = "Person",
-                SollStundenProTag = 8
+                SollStundenProTag = 8,
+                Wochenarbeitszeit = 40
             };
 
             context.Mitarbeiter.Add(mitarbeiter);

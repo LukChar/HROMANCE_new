@@ -164,30 +164,47 @@ public class ArbeitszeitService
         return istStunden - sollStunden;
     }
 
+    public double BerechneSollstundenProTag(double wochenarbeitszeit)
+    {
+        return wochenarbeitszeit / 5;
+    }
+
+    public double BerechneMonatssoll(int jahr, int monat, double wochenarbeitszeit)
+    {
+        var sollstunden = 0.0;
+        var sollstundenProTag = BerechneSollstundenProTag(wochenarbeitszeit);
+        var tageImMonat = DateTime.DaysInMonth(jahr, monat);
+
+        for (var tag = 1; tag <= tageImMonat; tag++)
+        {
+            var datum = new DateTime(jahr, monat, tag);
+
+            if (datum.DayOfWeek != DayOfWeek.Saturday
+                && datum.DayOfWeek != DayOfWeek.Sunday)
+            {
+                sollstunden += sollstundenProTag;
+            }
+        }
+
+        return sollstunden;
+    }
+
+    public double BerechneSaldo(double iststunden, double sollstunden)
+    {
+        return iststunden - sollstunden;
+    }
+
     public async Task<(double Ist, double Soll, double Saldo)> GetMonatswerteAsync(
         int mitarbeiterId,
         int jahr,
         int monat,
-        double sollStundenProTag)
+        double wochenarbeitszeit)
     {
         var alleArbeitszeiten = await GetByMitarbeiterAsync(mitarbeiterId);
-        var istStunden = 0.0;
-        var tageMitArbeitszeit = new List<DateTime>();
+        var istStunden = BerechneMonatsstunden(alleArbeitszeiten, mitarbeiterId, jahr, monat);
+        var sollStunden = BerechneMonatssoll(jahr, monat, wochenarbeitszeit);
+        var saldo = BerechneSaldo(istStunden, sollStunden);
 
-        foreach (var arbeitszeit in alleArbeitszeiten)
-        {
-            if (arbeitszeit.Datum.Year == jahr && arbeitszeit.Datum.Month == monat)
-            {
-                istStunden += BerechneArbeitsstunden(arbeitszeit);
-
-                if (!tageMitArbeitszeit.Contains(arbeitszeit.Datum.Date))
-                {
-                    tageMitArbeitszeit.Add(arbeitszeit.Datum.Date);
-                }
-            }
-        }
-
-        var sollStunden = tageMitArbeitszeit.Count * sollStundenProTag;
-        return (istStunden, sollStunden, istStunden - sollStunden);
+        return (istStunden, sollStunden, saldo);
     }
 }

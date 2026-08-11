@@ -95,6 +95,7 @@ namespace HRomance.Services
                 vorhandenerMitarbeiter.Qualifikation = mitarbeiter.Qualifikation;
                 vorhandenerMitarbeiter.Verfuegbar = mitarbeiter.Verfuegbar;
                 vorhandenerMitarbeiter.SollStundenProTag = mitarbeiter.SollStundenProTag;
+                vorhandenerMitarbeiter.Wochenarbeitszeit = mitarbeiter.Wochenarbeitszeit;
 
                 vorhandenerMitarbeiter.Qualifikationen.Clear();
 
