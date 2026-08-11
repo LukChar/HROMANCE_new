@@ -1,4 +1,5 @@
 ﻿@page "/qualifikationen"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin,Disponent")]
 @rendermode InteractiveServer
 
 @using HRomance.Models

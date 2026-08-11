@@ -1,5 +1,6 @@
 @page "/antraege"
 @rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
 
 @using HRomance.Models
 @using HRomance.Services
@@ -91,19 +92,21 @@
                                 <td>@(string.IsNullOrWhiteSpace(antrag.Grund) ? "-" : antrag.Grund)</td>
                                 <td>@antrag.Status</td>
                                 <td>
-                                    @if (antrag.Status == "Offen")
-                                    {
-                                        <div class="action-buttons">
-                                            <button type="button" class="approve-button"
-                                                    @onclick='() => BestaetigungOeffnen(antrag, "Genehmigt")'>
-                                                Genehmigen
-                                            </button>
-                                            <button type="button" class="reject-button"
-                                                    @onclick='() => BestaetigungOeffnen(antrag, "Abgelehnt")'>
-                                                Ablehnen
-                                            </button>
-                                        </div>
-                                    }
+                                    <AuthorizeView Roles="Admin,Disponent">
+                                        @if (antrag.Status == "Offen")
+                                        {
+                                            <div class="action-buttons">
+                                                <button type="button" class="approve-button"
+                                                        @onclick='() => BestaetigungOeffnen(antrag, "Genehmigt")'>
+                                                    Genehmigen
+                                                </button>
+                                                <button type="button" class="reject-button"
+                                                        @onclick='() => BestaetigungOeffnen(antrag, "Abgelehnt")'>
+                                                    Ablehnen
+                                                </button>
+                                            </div>
+                                        }
+                                    </AuthorizeView>
                                 </td>
                             </tr>
                         }

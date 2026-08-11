@@ -1,5 +1,6 @@
 @page "/dashboard"
 @rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
 
 @using System.Globalization
 @using HRomance.Components.Pages.Auftraege
@@ -19,18 +20,21 @@
         <p>Übersicht über Mitarbeiter, Aufträge, Anträge und Arbeitszeiten</p>
     </div>
 
-    <div class="view-switch">
-        <button type="button"
-                class="@AnsichtsButtonKlasse(false)"
-                @onclick="() => MitarbeiterAnsichtSetzen(false)">
-            Manager-Ansicht
-        </button>
-        <button type="button"
-                class="@AnsichtsButtonKlasse(true)"
-                @onclick="() => MitarbeiterAnsichtSetzen(true)">
-            Mitarbeiter-Ansicht
-        </button>
-    </div>
+    @if (istManager)
+    {
+        <div class="view-switch">
+            <button type="button"
+                    class="@AnsichtsButtonKlasse(false)"
+                    @onclick="() => MitarbeiterAnsichtSetzen(false)">
+                Manager-Ansicht
+            </button>
+            <button type="button"
+                    class="@AnsichtsButtonKlasse(true)"
+                    @onclick="() => MitarbeiterAnsichtSetzen(true)">
+                Mitarbeiter-Ansicht
+            </button>
+        </div>
+    }
 
     <section class="dashboard-section working-time-overview">
         <div class="section-header">
@@ -342,6 +346,7 @@
     private int besetzteAuftraege;
     private int ausgewaehlterMitarbeiterId;
     private bool mitarbeiterAnsicht;
+    private bool istManager;
     private Auftrag? ausgewaehlterAuftrag;
     private bool arbeitszeitPopupSichtbar;
     private Arbeitszeit neueArbeitszeit = new();
@@ -353,6 +358,11 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var authenticationState = await AuthenticationStateTask;
+        istManager = authenticationState.User.IsInRole("Admin")
+            || authenticationState.User.IsInRole("Disponent");
+        mitarbeiterAnsicht = !istManager;
+
         mitarbeiter = await MitarbeiterService.GetAllAsync();
         auftraege = await AuftragService.GetAllAsync();
         arbeitszeiten = await ArbeitszeitService.GetAllAsync();
@@ -400,6 +410,9 @@
             }
         }
     }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
 
     private void MitarbeiterGeaendert(ChangeEventArgs e)
     {
