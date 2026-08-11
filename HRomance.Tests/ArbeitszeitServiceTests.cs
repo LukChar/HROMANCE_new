@@ -11,8 +11,10 @@ public class ArbeitszeitServiceTests
 {
     [Theory]
     [InlineData(8, 0, "08:00")]
-    [InlineData(13, 30, "13:30")]
-    [InlineData(16, 0, "16:00")]
+    [InlineData(12, 0, "12:00")]
+    [InlineData(13, 0, "13:00")]
+    [InlineData(16, 30, "16:30")]
+    [InlineData(23, 45, "23:45")]
     public void UhrzeitWirdImVierundzwanzigStundenFormatAngezeigt(
         int stunde,
         int minute,
@@ -34,9 +36,9 @@ public class ArbeitszeitServiceTests
 
         var anzeige = testdatenbank.Service.ZeitraumAnzeigen(
             new TimeOnly(8, 0),
-            new TimeOnly(16, 0));
+            new TimeOnly(16, 30));
 
-        Assert.Equal("08:00 - 16:00", anzeige);
+        Assert.Equal("08:00 - 16:30", anzeige);
         Assert.DoesNotContain("AM", anzeige);
         Assert.DoesNotContain("PM", anzeige);
     }
