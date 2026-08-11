@@ -14,8 +14,14 @@
 
 <div class="applications-page">
     <div class="page-header">
-        <h1>Anträge</h1>
-        <p>Urlaubs- und Abwesenheitsanträge</p>
+        <div>
+            <h1>Anträge</h1>
+            <p>Urlaubs- und Abwesenheitsanträge</p>
+        </div>
+
+        <button type="button" class="btn btn-primary" @onclick="NeuerAntragOeffnen">
+            Neuer Antrag
+        </button>
     </div>
 
     <div class="overview">
@@ -120,6 +126,56 @@
     </div>
 </div>
 
+@if (neuerAntragSichtbar)
+{
+    <div class="popup-background" @onclick="NeuerAntragSchliessen">
+        <div class="status-popup" @onclick:stopPropagation="true">
+            <h2>Neuer Antrag</h2>
+
+            <EditForm Model="neuerAntrag" OnValidSubmit="NeuenAntragSpeichern" FormName="NeuerAntrag">
+                <DataAnnotationsValidator />
+
+                <div class="request-form">
+                    <div>
+                        <label>Art</label>
+                        <InputSelect @bind-Value="neuerAntrag.Typ">
+                            <option value="Urlaub">Urlaub</option>
+                            <option value="Zeitausgleich">Zeitausgleich</option>
+                            <option value="Krankenstand">Krankenstand</option>
+                            <option value="Sonstige Abwesenheit">Sonstige Abwesenheit</option>
+                        </InputSelect>
+                    </div>
+
+                    <div>
+                        <label>Von</label>
+                        <InputDate @bind-Value="neuerAntrag.Von" />
+                    </div>
+
+                    <div>
+                        <label>Bis</label>
+                        <InputDate @bind-Value="neuerAntrag.Bis" />
+                    </div>
+
+                    <div>
+                        <label>Grund / Notiz</label>
+                        <InputTextArea @bind-Value="neuerAntrag.Grund" />
+                    </div>
+                </div>
+
+                @if (antragFehler != string.Empty)
+                {
+                    <p class="form-error">@antragFehler</p>
+                }
+
+                <div class="popup-actions">
+                    <button type="button" class="cancel-button" @onclick="NeuerAntragSchliessen">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Antrag stellen</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
 @if (bestaetigungsAntrag != null)
 {
     <div class="popup-background" @onclick="BestaetigungSchliessen">
@@ -163,6 +219,9 @@
     private string neuerStatus = string.Empty;
     private int mitarbeiterId;
     private bool istManager;
+    private bool neuerAntragSichtbar;
+    private Abwesenheit neuerAntrag = new();
+    private string antragFehler = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -242,6 +301,55 @@
     private void SortierungGeaendert(ChangeEventArgs e)
     {
         sortierung = e.Value?.ToString() ?? "Neueste";
+    }
+
+    private void NeuerAntragOeffnen()
+    {
+        neuerAntrag = new Abwesenheit
+        {
+            Typ = "Urlaub",
+            Von = DateTime.Today,
+            Bis = DateTime.Today,
+            Status = "Offen"
+        };
+
+        antragFehler = string.Empty;
+        neuerAntragSichtbar = true;
+    }
+
+    private void NeuerAntragSchliessen()
+    {
+        neuerAntragSichtbar = false;
+        neuerAntrag = new Abwesenheit();
+        antragFehler = string.Empty;
+    }
+
+    private async Task NeuenAntragSpeichern()
+    {
+        if (mitarbeiterId == 0)
+        {
+            antragFehler = "Dem Benutzer ist kein Mitarbeiter zugeordnet.";
+            return;
+        }
+
+        if (neuerAntrag.Bis.Date < neuerAntrag.Von.Date)
+        {
+            antragFehler = "Das Bis-Datum darf nicht vor dem Von-Datum liegen.";
+            return;
+        }
+
+        var gespeichert = await AbwesenheitService.PersoenlichenAntragHinzufuegenAsync(
+            neuerAntrag,
+            mitarbeiterId);
+
+        if (!gespeichert)
+        {
+            antragFehler = "Der Antrag konnte nicht gespeichert werden.";
+            return;
+        }
+
+        NeuerAntragSchliessen();
+        await AntraegeLaden();
     }
 
     private void BestaetigungOeffnen(Abwesenheit antrag, string status)

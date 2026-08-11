@@ -41,6 +41,23 @@ public class AbwesenheitService
         await _context.SaveChangesAsync();
     }
 
+    public async Task<bool> PersoenlichenAntragHinzufuegenAsync(
+        Abwesenheit antrag,
+        int mitarbeiterId)
+    {
+        if (mitarbeiterId <= 0 || antrag.Bis.Date < antrag.Von.Date)
+        {
+            return false;
+        }
+
+        antrag.MitarbeiterId = mitarbeiterId;
+        antrag.Status = "Offen";
+
+        _context.Abwesenheiten.Add(antrag);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
     public async Task UpdateAsync(Abwesenheit abwesenheit)
     {
         var vorhandeneAbwesenheit = await _context.Abwesenheiten.FindAsync(abwesenheit.Id);
