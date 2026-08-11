@@ -238,6 +238,116 @@
     font-size: 14px;
 }
 
+.add-working-time-button {
+    margin-top: 8px;
+    padding: 8px 12px;
+    border: 1px solid #cfd4da;
+    border-radius: 6px;
+    color: #30343b;
+    background-color: white;
+    font-size: 14px;
+}
+
+.add-working-time-button:hover {
+    background-color: #f5f6f7;
+}
+
+.popup-background {
+    position: fixed;
+    z-index: 1000;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background-color: rgba(0, 0, 0, 0.35);
+}
+
+.entry-popup {
+    width: 100%;
+    max-width: 620px;
+    padding: 22px;
+    border: 1px solid #d7dbe0;
+    border-radius: 8px;
+    background-color: white;
+}
+
+.entry-popup h2 {
+    margin: 0 0 18px;
+    color: #202124;
+    font-size: 22px;
+}
+
+.entry-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    margin-bottom: 7px;
+    color: #30343b;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.form-input {
+    width: 100%;
+    padding: 9px 11px;
+    border: 1px solid #cfd4da;
+    border-radius: 6px;
+    color: #202124;
+    background-color: white;
+    font-size: 14px;
+}
+
+textarea.form-input {
+    min-height: 85px;
+    resize: vertical;
+}
+
+.full-width {
+    grid-column: 1 / -1;
+}
+
+.form-error,
+.validation-message {
+    margin-top: 6px;
+    color: #b91c1c;
+    font-size: 13px;
+}
+
+.popup-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 9px;
+    margin-top: 22px;
+}
+
+.popup-actions button {
+    padding: 8px 12px;
+    border: 1px solid #cfd4da;
+    border-radius: 6px;
+    color: #30343b;
+    background-color: white;
+    font-size: 14px;
+}
+
+.popup-actions button:hover {
+    background-color: #f5f6f7;
+}
+
+.popup-actions .save-button {
+    border-color: #2563eb;
+    color: white;
+    background-color: #2563eb;
+}
+
 .positive-balance strong {
     color: #287a45;
 }
@@ -284,5 +394,13 @@
     .compact-entry {
         flex-direction: column;
         gap: 3px;
+    }
+
+    .entry-form {
+        grid-template-columns: 1fr;
+    }
+
+    .full-width {
+        grid-column: auto;
     }
 }

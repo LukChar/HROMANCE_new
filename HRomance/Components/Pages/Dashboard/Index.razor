@@ -73,6 +73,9 @@
                         <span>Saldo</span>
                         <strong>@SaldoAnzeigen() h</strong>
                     </div>
+                    <button type="button" class="add-working-time-button" @onclick="ArbeitszeitPopupOeffnen">
+                        Stunden eintragen
+                    </button>
                 </div>
             }
         </div>
@@ -253,6 +256,68 @@
                    Geschlossen="AuftragSchliessen" />
 }
 
+@if (arbeitszeitPopupSichtbar)
+{
+    <div class="popup-background" @onclick="ArbeitszeitPopupSchliessen">
+        <div class="entry-popup" @onclick:stopPropagation="true">
+            <h2>Arbeitszeit eintragen</h2>
+
+            <EditForm Model="@neueArbeitszeit" OnValidSubmit="ArbeitszeitSpeichern" FormName="DashboardArbeitszeit">
+                <DataAnnotationsValidator />
+
+                <div class="entry-form">
+                    <div class="form-group">
+                        <label>Mitarbeiter</label>
+                        <InputSelect class="form-input" @bind-Value="neueArbeitszeit.MitarbeiterId">
+                            <option value="0">Bitte auswählen</option>
+                            @foreach (var person in mitarbeiter)
+                            {
+                                <option value="@person.Id">@person.Vorname @person.Nachname</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => neueArbeitszeit.MitarbeiterId)" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Datum</label>
+                        <InputDate class="form-input" @bind-Value="neueArbeitszeit.Datum" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Beginn</label>
+                        <InputDate class="form-input" Type="InputDateType.Time" @bind-Value="neueArbeitszeit.Beginn" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Ende</label>
+                        <InputDate class="form-input" Type="InputDateType.Time" @bind-Value="neueArbeitszeit.Ende" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Pause in Minuten</label>
+                        <InputNumber class="form-input" @bind-Value="neueArbeitszeit.PauseMinuten" />
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label>Notiz</label>
+                        <InputTextArea class="form-input" @bind-Value="neueArbeitszeit.Notiz" />
+                    </div>
+                </div>
+
+                @if (arbeitszeitFehler != string.Empty)
+                {
+                    <p class="form-error">@arbeitszeitFehler</p>
+                }
+
+                <div class="popup-actions">
+                    <button type="button" @onclick="ArbeitszeitPopupSchliessen">Abbrechen</button>
+                    <button type="submit" class="save-button">Speichern</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
 @code {
     private List<Mitarbeiter> mitarbeiter = new();
     private List<Auftrag> auftraege = new();
@@ -268,6 +333,9 @@
     private int ausgewaehlterMitarbeiterId;
     private bool mitarbeiterAnsicht;
     private Auftrag? ausgewaehlterAuftrag;
+    private bool arbeitszeitPopupSichtbar;
+    private Arbeitszeit neueArbeitszeit = new();
+    private string arbeitszeitFehler = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -501,6 +569,41 @@
     private void AuftragSchliessen()
     {
         ausgewaehlterAuftrag = null;
+    }
+
+    private void ArbeitszeitPopupOeffnen()
+    {
+        neueArbeitszeit = new Arbeitszeit
+        {
+            MitarbeiterId = ausgewaehlterMitarbeiterId,
+            Datum = DateTime.Today,
+            Beginn = new TimeOnly(8, 0),
+            Ende = new TimeOnly(16, 0)
+        };
+
+        arbeitszeitFehler = string.Empty;
+        arbeitszeitPopupSichtbar = true;
+    }
+
+    private void ArbeitszeitPopupSchliessen()
+    {
+        arbeitszeitPopupSichtbar = false;
+        arbeitszeitFehler = string.Empty;
+        neueArbeitszeit = new Arbeitszeit();
+    }
+
+    private async Task ArbeitszeitSpeichern()
+    {
+        arbeitszeitFehler = ArbeitszeitService.Validierungsfehler(neueArbeitszeit);
+
+        if (arbeitszeitFehler != string.Empty)
+        {
+            return;
+        }
+
+        await ArbeitszeitService.AddAsync(neueArbeitszeit);
+        arbeitszeiten = await ArbeitszeitService.GetAllAsync();
+        ArbeitszeitPopupSchliessen();
     }
 
     private string MitarbeiterName(Mitarbeiter? person)

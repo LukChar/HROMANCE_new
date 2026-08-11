@@ -249,6 +249,55 @@ public class DashboardTests
         Assert.Equal(1, besetzteAuftraege);
     }
 
+    [Fact]
+    public async Task ArbeitszeitWirdDemAusgewaehltenMitarbeiterZugeordnet()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var mitarbeiter = await testdatenbank.MitarbeiterHinzufuegen();
+        var arbeitszeit = NeueArbeitszeit(mitarbeiter.Id, 8, 16, 30);
+
+        await testdatenbank.ArbeitszeitService.AddAsync(arbeitszeit);
+        var gespeichert = await testdatenbank.ArbeitszeitService.GetAllAsync();
+
+        Assert.Single(gespeichert);
+        Assert.Equal(mitarbeiter.Id, gespeichert[0].MitarbeiterId);
+    }
+
+    [Fact]
+    public async Task ArbeitszeitUebernimmtDatumBeginnUndEnde()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var mitarbeiter = await testdatenbank.MitarbeiterHinzufuegen();
+        var arbeitszeit = NeueArbeitszeit(mitarbeiter.Id, 7, 15, 20);
+        arbeitszeit.Datum = new DateTime(2026, 8, 10);
+
+        await testdatenbank.ArbeitszeitService.AddAsync(arbeitszeit);
+        var gespeichert = await testdatenbank.ArbeitszeitService.GetAllAsync();
+
+        Assert.Equal(new DateTime(2026, 8, 10), gespeichert[0].Datum);
+        Assert.Equal(new TimeOnly(7, 0), gespeichert[0].Beginn);
+        Assert.Equal(new TimeOnly(15, 0), gespeichert[0].Ende);
+        Assert.Equal(20, gespeichert[0].PauseMinuten);
+    }
+
+    [Fact]
+    public async Task NeuladenNachSpeichernAktualisiertMonatsstunden()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var mitarbeiter = await testdatenbank.MitarbeiterHinzufuegen();
+        var vorher = await testdatenbank.ArbeitszeitService.GetAllAsync();
+        var arbeitszeit = NeueArbeitszeit(mitarbeiter.Id, 8, 16, 0);
+
+        await testdatenbank.ArbeitszeitService.AddAsync(arbeitszeit);
+        var nachher = await testdatenbank.ArbeitszeitService.GetAllAsync();
+        var stunden = testdatenbank.ArbeitszeitService.BerechneMonatsstunden(
+            nachher, mitarbeiter.Id, 2026, 8);
+
+        Assert.Empty(vorher);
+        Assert.Single(nachher);
+        Assert.Equal(8, stunden);
+    }
+
     private static Auftrag NeuerAuftrag(int startTag = 10, int endeTag = 12)
     {
         return new Auftrag
@@ -314,6 +363,20 @@ public class DashboardTests
             AuftragService = new AuftragService(context);
             AbwesenheitService = new AbwesenheitService(context);
             ArbeitszeitService = new ArbeitszeitService(context);
+        }
+
+        public async Task<Mitarbeiter> MitarbeiterHinzufuegen()
+        {
+            var mitarbeiter = new Mitarbeiter
+            {
+                Personalnummer = "P-100",
+                Vorname = "Max",
+                Nachname = "Test"
+            };
+
+            context.Mitarbeiter.Add(mitarbeiter);
+            await context.SaveChangesAsync();
+            return mitarbeiter;
         }
 
         public void Dispose()

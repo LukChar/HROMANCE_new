@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 
 @using HRomance.Services
+@using HRomance.Models
 
 @inject MitarbeiterService MitarbeiterService
 
@@ -138,9 +139,9 @@
                                     }
                                 </td>
                                 <td>
-                                    <a href="/mitarbeiter/details/@mitarbeiter.Id" class="details-button">
+                                    <button type="button" class="details-button" @onclick="() => DetailsOeffnen(mitarbeiter)">
                                         Details
-                                    </a>
+                                    </button>
                                 </td>
                             </tr>
                         }
@@ -153,6 +154,33 @@
 
 </div>
 
+@if (ausgewaehlterMitarbeiter != null)
+{
+    <div class="popup-background" @onclick="DetailsSchliessen">
+        <div class="entry-popup" @onclick:stopPropagation="true">
+            <h2>Mitarbeiterdetails</h2>
+
+            <div class="popup-details">
+                <strong>@ausgewaehlterMitarbeiter.Vorname @ausgewaehlterMitarbeiter.Nachname</strong>
+                <span>Personalnummer: @ausgewaehlterMitarbeiter.Personalnummer</span>
+                <span>E-Mail: @ausgewaehlterMitarbeiter.Email</span>
+                @if (!string.IsNullOrWhiteSpace(ausgewaehlterMitarbeiter.Telefon))
+                {
+                    <span>Telefon: @ausgewaehlterMitarbeiter.Telefon</span>
+                }
+                <span>Wochenstunden: @ausgewaehlterMitarbeiter.Wochenarbeitszeit</span>
+                <span>Verfügbarkeit: @(ausgewaehlterMitarbeiter.Verfuegbar ? "Verfügbar" : "Nicht verfügbar")</span>
+                <span>Qualifikationen: @QualifikationenAnzeigen(ausgewaehlterMitarbeiter)</span>
+            </div>
+
+            <div class="popup-actions">
+                <a href="/mitarbeiter/edit/@ausgewaehlterMitarbeiter.Id" class="edit-button">Bearbeiten</a>
+                <button type="button" @onclick="DetailsSchliessen">Schließen</button>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private List<HRomance.Models.Mitarbeiter> mitarbeiterListe =
         new List<HRomance.Models.Mitarbeiter>();
@@ -164,6 +192,7 @@
     private int anzahlNichtVerfuegbar = 0;
     private string suchtext = string.Empty;
     private string verfuegbarkeitsfilter = "Alle";
+    private Mitarbeiter? ausgewaehlterMitarbeiter;
 
     protected override async Task OnInitializedAsync()
     {
@@ -224,5 +253,32 @@
                 gefilterteMitarbeiter.Add(mitarbeiter);
             }
         }
+    }
+
+    private void DetailsOeffnen(Mitarbeiter mitarbeiter)
+    {
+        ausgewaehlterMitarbeiter = mitarbeiter;
+    }
+
+    private void DetailsSchliessen()
+    {
+        ausgewaehlterMitarbeiter = null;
+    }
+
+    private string QualifikationenAnzeigen(Mitarbeiter mitarbeiter)
+    {
+        var namen = string.Empty;
+
+        foreach (var qualifikation in mitarbeiter.Qualifikationen)
+        {
+            if (namen != string.Empty)
+            {
+                namen += ", ";
+            }
+
+            namen += qualifikation.Name;
+        }
+
+        return namen == string.Empty ? "Keine Qualifikationen zugewiesen" : namen;
     }
 }

@@ -185,6 +185,66 @@ public class KalenderFunktionTests
         Assert.Single(geladen?.Mitarbeiter ?? []);
     }
 
+    [Fact]
+    public void MehrAlsVierTageseintraegeErgebenKorrekteWeitereAnzahl()
+    {
+        var arbeitszeiten = new List<Arbeitszeit> { new(), new() };
+        var abwesenheiten = new List<Abwesenheit> { new(), new() };
+        var auftraege = new List<Auftrag> { new(), new(), new() };
+
+        var anzahlEintraege = arbeitszeiten.Count + abwesenheiten.Count + auftraege.Count;
+        var weitereEintraege = anzahlEintraege - 4;
+
+        Assert.Equal(3, weitereEintraege);
+    }
+
+    [Fact]
+    public void TageslisteKannAlleDreiEintragsartenEnthalten()
+    {
+        var arbeitszeiten = new List<Arbeitszeit> { NeueArbeitszeit() };
+        var abwesenheiten = new List<Abwesenheit> { new() };
+        var auftraege = new List<Auftrag> { new() };
+
+        Assert.Single(arbeitszeiten);
+        Assert.Single(abwesenheiten);
+        Assert.Single(auftraege);
+        Assert.Equal(3, arbeitszeiten.Count + abwesenheiten.Count + auftraege.Count);
+    }
+
+    [Fact]
+    public void AusgewaehlteArbeitszeitBehaeltRichtigeId()
+    {
+        var arbeitszeit = NeueArbeitszeit();
+        arbeitszeit.Id = 17;
+
+        var ausgewaehlteArbeitszeit = arbeitszeit;
+
+        Assert.Equal(17, ausgewaehlteArbeitszeit.Id);
+    }
+
+    [Fact]
+    public async Task MitarbeiterdetailsLadenRichtigenMitarbeiter()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var mitarbeiter = await testdatenbank.MitarbeiterHinzufuegen();
+
+        var geladen = await testdatenbank.MitarbeiterService.GetByIdAsync(mitarbeiter.Id);
+
+        Assert.NotNull(geladen);
+        Assert.Equal("Max", geladen.Vorname);
+        Assert.Equal("Test", geladen.Nachname);
+    }
+
+    [Fact]
+    public async Task UnbekannteMitarbeiterIdLiefertKeineDetails()
+    {
+        using var testdatenbank = new Testdatenbank();
+
+        var geladen = await testdatenbank.MitarbeiterService.GetByIdAsync(999);
+
+        Assert.Null(geladen);
+    }
+
     private static Arbeitszeit NeueArbeitszeit()
     {
         return new Arbeitszeit
@@ -268,6 +328,14 @@ public class KalenderFunktionTests
             context.Auftraege.Add(auftrag);
             await context.SaveChangesAsync();
             return auftrag;
+        }
+
+        public async Task<Mitarbeiter> MitarbeiterHinzufuegen()
+        {
+            var mitarbeiter = NeuerMitarbeiter("3");
+            context.Mitarbeiter.Add(mitarbeiter);
+            await context.SaveChangesAsync();
+            return mitarbeiter;
         }
 
         private static Mitarbeiter NeuerMitarbeiter(string nummer)

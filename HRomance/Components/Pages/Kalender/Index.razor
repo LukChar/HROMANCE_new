@@ -171,7 +171,7 @@
                             @if (anzahlEintraege > 4)
                             {
                                 <button type="button" class="more-entries"
-                                        @onclick="() => TagAuswaehlen(datum)"
+                                        @onclick="() => TageslisteOeffnen(datum)"
                                         @onclick:stopPropagation="true"
                                         @ondblclick:stopPropagation="true">
                                     + @(anzahlEintraege - 4) weitere
@@ -560,11 +560,45 @@
     }
 </div>
 
-@if (popupSichtbar && (popupArt == "Arbeitszeit" || popupArt == "Abwesenheit" || popupArt == "Auftrag"))
+@if (popupSichtbar && (popupArt == "Arbeitszeit" || popupArt == "Abwesenheit" || popupArt == "Auftrag" || popupArt == "Tagesliste"))
 {
     <div class="popup-background" @onclick="PopupSchliessen">
         <div class="entry-popup" @onclick:stopPropagation="true">
-            @if (popupArt == "Arbeitszeit" && popupArbeitszeit != null)
+            @if (popupArt == "Tagesliste" && popupTageslisteDatum != null)
+            {
+                <h2>@DatumAnzeigen(popupTageslisteDatum.Value)</h2>
+
+                <div class="day-popup-list">
+                    @foreach (var arbeitszeit in ArbeitszeitenAmTag(popupTageslisteDatum.Value))
+                    {
+                        <button type="button" class="day-popup-entry work-entry" @onclick="() => ArbeitszeitAusTageslisteOeffnen(arbeitszeit)">
+                            <strong>Arbeitszeit: @MitarbeiterName(arbeitszeit.Mitarbeiter)</strong>
+                            <span>@arbeitszeit.Beginn.ToString("HH:mm") - @arbeitszeit.Ende.ToString("HH:mm")</span>
+                        </button>
+                    }
+
+                    @foreach (var abwesenheit in AbwesenheitenAmTag(popupTageslisteDatum.Value))
+                    {
+                        <button type="button" class="day-popup-entry absence-entry" @onclick="() => AbwesenheitAusTageslisteOeffnen(abwesenheit)">
+                            <strong>Abwesenheit: @MitarbeiterName(abwesenheit.Mitarbeiter)</strong>
+                            <span>@abwesenheit.Typ · @abwesenheit.Status</span>
+                        </button>
+                    }
+
+                    @foreach (var auftrag in AuftraegeAmTag(popupTageslisteDatum.Value))
+                    {
+                        <button type="button" class="day-popup-entry @(auftrag.Besetzt ? "occupied" : "open")" @onclick="() => AuftragAusTageslisteOeffnen(auftrag)">
+                            <strong>Auftrag: @auftrag.Titel</strong>
+                            <span>@(auftrag.Kunde?.Firmenname ?? "Kein Kunde") · @(auftrag.Besetzt ? "Besetzt" : "Offen")</span>
+                        </button>
+                    }
+                </div>
+
+                <div class="popup-actions">
+                    <button type="button" @onclick="PopupSchliessen">Schließen</button>
+                </div>
+            }
+            else if (popupArt == "Arbeitszeit" && popupArbeitszeit != null)
             {
                 <h2>Arbeitszeit</h2>
                 <div class="popup-details">
@@ -659,6 +693,7 @@
     private Auftrag? popupAuftrag;
     private Arbeitszeit? popupArbeitszeit;
     private Abwesenheit? popupAbwesenheit;
+    private DateTime? popupTageslisteDatum;
     private int mitarbeiterfilter;
     private string mitarbeitersuche = string.Empty;
     private bool mitarbeitervorschlaegeSichtbar;
@@ -885,12 +920,39 @@
         popupSichtbar = true;
     }
 
+    private void TageslisteOeffnen(DateTime datum)
+    {
+        ausgewaehltesDatum = datum;
+        popupTageslisteDatum = datum;
+        popupArt = "Tagesliste";
+        popupSichtbar = true;
+    }
+
+    private void ArbeitszeitAusTageslisteOeffnen(Arbeitszeit arbeitszeit)
+    {
+        PopupSchliessen();
+        ArbeitszeitPopupOeffnen(arbeitszeit);
+    }
+
+    private void AbwesenheitAusTageslisteOeffnen(Abwesenheit abwesenheit)
+    {
+        PopupSchliessen();
+        AbwesenheitPopupOeffnen(abwesenheit);
+    }
+
+    private void AuftragAusTageslisteOeffnen(Auftrag auftrag)
+    {
+        PopupSchliessen();
+        AuftragPopupOeffnen(auftrag);
+    }
+
     private void ArbeitszeitPopupOeffnen(Arbeitszeit arbeitszeit)
     {
         ausgewaehltesDatum = arbeitszeit.Datum.Date;
         popupAuftrag = null;
         popupArbeitszeit = arbeitszeit;
         popupAbwesenheit = null;
+        popupTageslisteDatum = null;
         popupArt = "Arbeitszeit";
         popupSichtbar = true;
     }
@@ -912,6 +974,7 @@
         popupAuftrag = null;
         popupArbeitszeit = null;
         popupAbwesenheit = null;
+        popupTageslisteDatum = null;
         ausgewaehlteEintragsart = string.Empty;
         formularFehler = string.Empty;
         neueArbeitszeit = new Arbeitszeit();
