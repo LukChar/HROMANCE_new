@@ -102,6 +102,81 @@ public class MatchingService
         return true;
     }
 
+    public MatchingVorschlag? VorschlagAuswaehlen(
+        List<MatchingVorschlag> vorschlaege,
+        int nummer)
+    {
+        foreach (var vorschlag in vorschlaege)
+        {
+            if (vorschlag.Nummer == nummer)
+            {
+                return vorschlag;
+            }
+        }
+
+        return null;
+    }
+
+    public List<MatchingTag> TagesgruppenErstellen(MatchingVorschlag vorschlag)
+    {
+        var tage = new List<MatchingTag>();
+
+        foreach (var zuweisung in vorschlag.Zuweisungen)
+        {
+            var datum = zuweisung.Auftrag.Startdatum.Date;
+
+            while (datum <= zuweisung.Auftrag.Enddatum.Date)
+            {
+                var tag = TagFinden(tage, datum);
+
+                if (tag == null)
+                {
+                    tag = new MatchingTag { Datum = datum };
+                    tage.Add(tag);
+                }
+
+                tag.Zuweisungen.Add(zuweisung);
+                datum = datum.AddDays(1);
+            }
+        }
+
+        for (var i = 0; i < tage.Count - 1; i++)
+        {
+            for (var j = 0; j < tage.Count - i - 1; j++)
+            {
+                if (tage[j].Datum > tage[j + 1].Datum)
+                {
+                    var zwischenspeicher = tage[j];
+                    tage[j] = tage[j + 1];
+                    tage[j + 1] = zwischenspeicher;
+                }
+            }
+        }
+
+        return tage;
+    }
+
+    public (int Auftraege, int Mitarbeiter, int Unbesetzt) ZusammenfassungErstellen(
+        MatchingVorschlag vorschlag)
+    {
+        var mitarbeiterIds = new HashSet<int>();
+        var unbesetzt = 0;
+
+        foreach (var zuweisung in vorschlag.Zuweisungen)
+        {
+            if (zuweisung.Mitarbeiter == null)
+            {
+                unbesetzt++;
+            }
+            else
+            {
+                mitarbeiterIds.Add(zuweisung.Mitarbeiter.Id);
+            }
+        }
+
+        return (vorschlag.Zuweisungen.Count, mitarbeiterIds.Count, unbesetzt);
+    }
+
     private MatchingVorschlag ErstelleVorschlag(
         int nummer,
         string name,
@@ -391,6 +466,19 @@ public class MatchingService
             if (person.Id == id)
             {
                 return person;
+            }
+        }
+
+        return null;
+    }
+
+    private MatchingTag? TagFinden(List<MatchingTag> tage, DateTime datum)
+    {
+        foreach (var tag in tage)
+        {
+            if (tag.Datum.Date == datum.Date)
+            {
+                return tag;
             }
         }
 

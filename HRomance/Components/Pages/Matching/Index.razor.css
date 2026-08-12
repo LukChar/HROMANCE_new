@@ -65,12 +65,14 @@ button:disabled {
     background-color: white;
 }
 
-.suggestion-list {
-    display: grid;
-    gap: 18px;
+.suggestion-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
 }
 
-.suggestion-card {
+.selected-plan {
     padding: 20px;
     border: 1px solid #e2e5e9;
     border-radius: 8px;
@@ -83,21 +85,37 @@ button:disabled {
 }
 
 .suggestion-header h2 {
-    margin-top: 3px;
     font-size: 20px;
 }
 
-.assignment-list {
+.suggestion-header p {
+    margin: 4px 0;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.day-groups {
     display: grid;
-    gap: 10px;
-    margin-top: 15px;
+    gap: 18px;
+    margin-top: 20px;
+}
+
+.day-group h3 {
+    margin: 0 0 8px;
+    color: #30343b;
+    font-size: 17px;
+}
+
+.day-assignments {
+    display: grid;
+    gap: 8px;
 }
 
 .assignment {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 20px;
-    padding: 13px;
+    padding: 11px 13px;
     border: 1px solid #e5e7eb;
     border-radius: 6px;
     background-color: #fafafa;
@@ -120,6 +138,7 @@ button:disabled {
 
 .no-match {
     align-self: center;
+    color: #b91c1c;
 }
 
 .popup-background {

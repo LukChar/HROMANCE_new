@@ -240,6 +240,195 @@ public class MatchingServiceTests
         Assert.DoesNotContain(gespeichert.Mitarbeiter, m => m.Id == vorgeschlagen.Id);
     }
 
+    [Fact]
+    public void VorschlagAuswaehlenVerwendetNurGewaehlteNummer()
+    {
+        using var datenbank = new Testdatenbank();
+        var vorschlaege = Testvorschlaege();
+
+        var ausgewaehlt = datenbank.Service.VorschlagAuswaehlen(vorschlaege, 1);
+
+        Assert.Same(vorschlaege[0], ausgewaehlt);
+    }
+
+    [Fact]
+    public void AusgeglichenKannDirektAusgewaehltWerden()
+    {
+        using var datenbank = new Testdatenbank();
+        var vorschlaege = Testvorschlaege();
+
+        var ausgewaehlt = datenbank.Service.VorschlagAuswaehlen(vorschlaege, 2);
+
+        Assert.Equal("Ausgeglichen", ausgewaehlt?.Name);
+        Assert.Same(vorschlaege[1], ausgewaehlt);
+    }
+
+    [Fact]
+    public void AlternativeKannDirektAusgewaehltWerden()
+    {
+        using var datenbank = new Testdatenbank();
+        var vorschlaege = Testvorschlaege();
+
+        var ausgewaehlt = datenbank.Service.VorschlagAuswaehlen(vorschlaege, 3);
+
+        Assert.Equal("Alternative", ausgewaehlt?.Name);
+        Assert.Same(vorschlaege[2], ausgewaehlt);
+    }
+
+    [Fact]
+    public void TagesgruppenSindChronologischSortiert()
+    {
+        using var datenbank = new Testdatenbank();
+        var vorschlag = VorschlagMitZuweisungen(
+            Zuweisung("Spät", 5, 5, NeuerTestmitarbeiter(1)),
+            Zuweisung("Früh", 1, 1, NeuerTestmitarbeiter(2)),
+            Zuweisung("Mitte", 3, 3, NeuerTestmitarbeiter(3)));
+
+        var tage = datenbank.Service.TagesgruppenErstellen(vorschlag);
+
+        Assert.Equal(Startdatum, tage[0].Datum);
+        Assert.Equal(Startdatum.AddDays(2), tage[1].Datum);
+        Assert.Equal(Startdatum.AddDays(4), tage[2].Datum);
+    }
+
+    [Fact]
+    public void EintaegigerAuftragErscheintAnGenauEinemTag()
+    {
+        using var datenbank = new Testdatenbank();
+        var vorschlag = VorschlagMitZuweisungen(
+            Zuweisung("Eintägig", 2, 2, NeuerTestmitarbeiter(1)));
+
+        var tage = datenbank.Service.TagesgruppenErstellen(vorschlag);
+
+        Assert.Single(tage);
+        Assert.Single(tage[0].Zuweisungen);
+    }
+
+    [Fact]
+    public void MehrtaegigerAuftragErscheintInVierTagesgruppen()
+    {
+        using var datenbank = new Testdatenbank();
+        var zuweisung = Zuweisung("Mehrtägig", 8, 11, NeuerTestmitarbeiter(1));
+        var vorschlag = VorschlagMitZuweisungen(zuweisung);
+
+        var tage = datenbank.Service.TagesgruppenErstellen(vorschlag);
+
+        Assert.Equal(4, tage.Count);
+        Assert.All(tage, tag => Assert.Same(zuweisung, Assert.Single(tag.Zuweisungen)));
+    }
+
+    [Fact]
+    public void TagesaufbereitungErzeugtKeineWeitereDatenbankzuweisung()
+    {
+        using var datenbank = new Testdatenbank();
+        var mitarbeiter = NeuerTestmitarbeiter(1);
+        var zuweisung = Zuweisung("Mehrtägig", 8, 11, mitarbeiter);
+        var vorschlag = VorschlagMitZuweisungen(zuweisung);
+
+        datenbank.Service.TagesgruppenErstellen(vorschlag);
+
+        Assert.Empty(zuweisung.Auftrag.Mitarbeiter);
+    }
+
+    [Fact]
+    public void MehrereAuftraegeAmSelbenTagBleibenInEinerTagesgruppe()
+    {
+        using var datenbank = new Testdatenbank();
+        var vorschlag = VorschlagMitZuweisungen(
+            Zuweisung("A", 2, 2, NeuerTestmitarbeiter(1)),
+            Zuweisung("B", 2, 2, NeuerTestmitarbeiter(2)),
+            Zuweisung("C", 2, 3, NeuerTestmitarbeiter(3)));
+
+        var tage = datenbank.Service.TagesgruppenErstellen(vorschlag);
+
+        Assert.Equal(3, tage[0].Zuweisungen.Count);
+        Assert.Equal(Startdatum.AddDays(1), tage[0].Datum);
+    }
+
+    [Fact]
+    public void UnbesetzterAuftragBleibtInTagesgruppeSichtbar()
+    {
+        using var datenbank = new Testdatenbank();
+        var unbesetzt = Zuweisung("Unbesetzt", 1, 1, null);
+        var vorschlag = VorschlagMitZuweisungen(unbesetzt);
+
+        var tage = datenbank.Service.TagesgruppenErstellen(vorschlag);
+
+        Assert.Same(unbesetzt, Assert.Single(Assert.Single(tage).Zuweisungen));
+        Assert.Null(unbesetzt.Mitarbeiter);
+    }
+
+    [Fact]
+    public void ZusammenfassungZaehltAuftraegeMitarbeiterUndUnbesetzte()
+    {
+        using var datenbank = new Testdatenbank();
+        var erster = NeuerTestmitarbeiter(1);
+        var zweiter = NeuerTestmitarbeiter(2);
+        var vorschlag = VorschlagMitZuweisungen(
+            Zuweisung("A", 1, 1, erster),
+            Zuweisung("B", 2, 2, erster),
+            Zuweisung("C", 3, 3, zweiter),
+            Zuweisung("D", 4, 4, null));
+
+        var zusammenfassung = datenbank.Service.ZusammenfassungErstellen(vorschlag);
+
+        Assert.Equal(4, zusammenfassung.Auftraege);
+        Assert.Equal(2, zusammenfassung.Mitarbeiter);
+        Assert.Equal(1, zusammenfassung.Unbesetzt);
+    }
+
+    private static List<MatchingVorschlag> Testvorschlaege()
+    {
+        return
+        [
+            new MatchingVorschlag { Nummer = 1, Name = "Beste Qualifikation" },
+            new MatchingVorschlag { Nummer = 2, Name = "Ausgeglichen" },
+            new MatchingVorschlag { Nummer = 3, Name = "Alternative" }
+        ];
+    }
+
+    private static MatchingVorschlag VorschlagMitZuweisungen(
+        params MatchingZuweisung[] zuweisungen)
+    {
+        var vorschlag = new MatchingVorschlag { Nummer = 1, Name = "Test" };
+
+        foreach (var zuweisung in zuweisungen)
+        {
+            vorschlag.Zuweisungen.Add(zuweisung);
+        }
+
+        return vorschlag;
+    }
+
+    private static MatchingZuweisung Zuweisung(
+        string titel,
+        int starttag,
+        int endtag,
+        Mitarbeiter? mitarbeiter)
+    {
+        return new MatchingZuweisung
+        {
+            Auftrag = new Auftrag
+            {
+                Titel = titel,
+                Startdatum = Startdatum.AddDays(starttag - 1),
+                Enddatum = Startdatum.AddDays(endtag - 1)
+            },
+            Mitarbeiter = mitarbeiter
+        };
+    }
+
+    private static Mitarbeiter NeuerTestmitarbeiter(int id)
+    {
+        return new Mitarbeiter
+        {
+            Id = id,
+            Personalnummer = "P" + id,
+            Vorname = "Test",
+            Nachname = id.ToString()
+        };
+    }
+
     private sealed class Testdatenbank : IDisposable
     {
         private readonly SqliteConnection verbindung;

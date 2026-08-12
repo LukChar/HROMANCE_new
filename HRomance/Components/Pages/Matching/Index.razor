@@ -26,59 +26,73 @@
         <p class="message">@meldung</p>
     }
 
-    @if (vorschlaege.Count > 0)
+    @if (AktuellerVorschlag() is MatchingVorschlag aktuellerVorschlag)
     {
-        <div class="suggestion-list">
+        <div class="suggestion-tabs">
             @foreach (var vorschlag in vorschlaege)
             {
-                <section class="suggestion-card">
-                    <div class="suggestion-header">
-                        <div>
-                            <span>Vorschlag @vorschlag.Nummer</span>
-                            <h2>@vorschlag.Name</h2>
-                        </div>
-
-                        <button type="button" class="primary-button" @onclick="() => BestaetigungOeffnen(vorschlag)">
-                            Vorschlag übernehmen
-                        </button>
-                    </div>
-
-                    <div class="assignment-list">
-                        @foreach (var zuweisung in vorschlag.Zuweisungen)
-                        {
-                            <article class="assignment">
-                                <div class="order-details">
-                                    <strong>@zuweisung.Auftrag.Titel</strong>
-                                    <span>@(zuweisung.Auftrag.Kunde?.Firmenname ?? "Kein Kunde")</span>
-                                    <span>@zuweisung.Auftrag.Startdatum.ToString("dd.MM.yyyy") bis @zuweisung.Auftrag.Enddatum.ToString("dd.MM.yyyy")</span>
-                                </div>
-
-                                @if (zuweisung.Mitarbeiter == null)
-                                {
-                                    <div class="no-match">Kein passender Mitarbeiter verfügbar</div>
-                                }
-                                else
-                                {
-                                    <div class="employee-details">
-                                        <strong>@MitarbeiterName(zuweisung.Mitarbeiter)</strong>
-                                        @if (zuweisung.BenoetigteQualifikationen == 0)
-                                        {
-                                            <span>Keine Qualifikation erforderlich</span>
-                                        }
-                                        else
-                                        {
-                                            <span>@zuweisung.PassendeQualifikationen/@zuweisung.BenoetigteQualifikationen Qualifikationen passend</span>
-                                        }
-                                        <span>Verfügbar</span>
-                                        <span>@EinsatzText(zuweisung.BestehendeEinsaetze)</span>
-                                    </div>
-                                }
-                            </article>
-                        }
-                    </div>
-                </section>
+                <button type="button"
+                        class="@(vorschlag.Nummer == ausgewaehlteVorschlagsnummer ? "primary-button" : "secondary-button")"
+                        @onclick="() => VorschlagWechseln(vorschlag.Nummer)">
+                    @vorschlag.Name
+                </button>
             }
         </div>
+
+        <section class="selected-plan">
+            <div class="suggestion-header">
+                <div>
+                    <h2>@aktuellerVorschlag.Name</h2>
+                    <p>@Vorschlagsbeschreibung(aktuellerVorschlag.Nummer)</p>
+                    <span>@Zusammenfassung(aktuellerVorschlag)</span>
+                </div>
+
+                <button type="button" class="primary-button" @onclick="() => BestaetigungOeffnen(aktuellerVorschlag)">
+                    Diesen Plan übernehmen
+                </button>
+            </div>
+
+            <div class="day-groups">
+                @foreach (var tag in MatchingService.TagesgruppenErstellen(aktuellerVorschlag))
+                {
+                    <section class="day-group">
+                        <h3>@TagAnzeigen(tag.Datum)</h3>
+
+                        <div class="day-assignments">
+                            @foreach (var zuweisung in tag.Zuweisungen)
+                            {
+                                <article class="assignment">
+                                    <div class="order-details">
+                                        <strong>@zuweisung.Auftrag.Titel</strong>
+                                        <span>@(zuweisung.Auftrag.Kunde?.Firmenname ?? "Kein Kunde")</span>
+                                    </div>
+
+                                    @if (zuweisung.Mitarbeiter == null)
+                                    {
+                                        <div class="no-match">Kein passender Mitarbeiter verfügbar</div>
+                                    }
+                                    else
+                                    {
+                                        <div class="employee-details">
+                                            <strong>@MitarbeiterName(zuweisung.Mitarbeiter)</strong>
+                                            @if (zuweisung.BenoetigteQualifikationen == 0)
+                                            {
+                                                <span>Keine Qualifikation erforderlich</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@zuweisung.PassendeQualifikationen/@zuweisung.BenoetigteQualifikationen Qualifikationen passend</span>
+                                            }
+                                            <span>@EinsatzText(zuweisung.BestehendeEinsaetze)</span>
+                                        </div>
+                                    }
+                                </article>
+                            }
+                        </div>
+                    </section>
+                }
+            </div>
+        </section>
     }
 </div>
 
@@ -114,6 +128,7 @@
     private string popupFehler = string.Empty;
     private bool wirdBerechnet;
     private bool wirdUebernommen;
+    private int ausgewaehlteVorschlagsnummer = 1;
 
     private async Task VorschlaegeErstellen()
     {
@@ -128,6 +143,7 @@
         try
         {
             vorschlaege = await MatchingService.ErstelleVorschlaegeAsync(DateTime.Today);
+            ausgewaehlteVorschlagsnummer = 1;
 
             if (vorschlaege.Count == 0)
             {
@@ -183,6 +199,7 @@
 
             ausgewaehlterVorschlag = null;
             vorschlaege = await MatchingService.ErstelleVorschlaegeAsync(DateTime.Today);
+            ausgewaehlteVorschlagsnummer = 1;
             meldung = "Der Planungsvorschlag wurde übernommen.";
         }
         catch
@@ -208,6 +225,49 @@
         }
 
         return anzahl;
+    }
+
+    private MatchingVorschlag? AktuellerVorschlag()
+    {
+        return MatchingService.VorschlagAuswaehlen(vorschlaege, ausgewaehlteVorschlagsnummer);
+    }
+
+    private void VorschlagWechseln(int nummer)
+    {
+        ausgewaehlteVorschlagsnummer = nummer;
+    }
+
+    private string Vorschlagsbeschreibung(int nummer)
+    {
+        if (nummer == 1)
+        {
+            return "Priorisiert vollständige Qualifikationsabdeckung.";
+        }
+
+        if (nummer == 2)
+        {
+            return "Verteilt Einsätze möglichst gleichmäßig.";
+        }
+
+        return "Zeigt eine sinnvolle alternative Verteilung.";
+    }
+
+    private string Zusammenfassung(MatchingVorschlag vorschlag)
+    {
+        var zusammenfassung = MatchingService.ZusammenfassungErstellen(vorschlag);
+
+        return zusammenfassung.Auftraege
+            + " Aufträge · "
+            + zusammenfassung.Mitarbeiter
+            + " Mitarbeiter · "
+            + zusammenfassung.Unbesetzt
+            + " unbesetzt";
+    }
+
+    private string TagAnzeigen(DateTime datum)
+    {
+        return datum.ToString("dddd, dd.MM.yyyy",
+            System.Globalization.CultureInfo.GetCultureInfo("de-DE"));
     }
 
     private string MitarbeiterName(Mitarbeiter mitarbeiter)
