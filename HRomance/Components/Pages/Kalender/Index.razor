@@ -88,11 +88,11 @@
                                 @if (angezeigteEintraege < 4)
                                 {
                                     angezeigteEintraege++;
-                                    <div class="calendar-note absence-entry @AbwesenheitsKlasse(abwesenheit, datum)"
+                                    <div class="calendar-note absence-entry @AbwesenheitService.KalenderSegmentKlasse(abwesenheit, datum)"
                                          @onclick="() => AbwesenheitPopupOeffnen(abwesenheit)"
                                          @onclick:stopPropagation="true"
                                          @ondblclick:stopPropagation="true">
-                                        @if (IstAbwesenheitsSegmentStart(abwesenheit, datum))
+                                        @if (AbwesenheitService.IstKalenderSegmentStart(abwesenheit, datum))
                                         {
                                             <strong>@MitarbeiterName(abwesenheit.Mitarbeiter) · @abwesenheit.Typ · @abwesenheit.Status</strong>
                                         }
@@ -1230,36 +1230,4 @@
         return passendeAbwesenheiten;
     }
 
-    private string AbwesenheitsKlasse(Abwesenheit abwesenheit, DateTime datum)
-    {
-        var letzterTagImMonat = DateTime.DaysInMonth(datum.Year, datum.Month);
-        var beginnt = IstAbwesenheitsSegmentStart(abwesenheit, datum);
-        var endet = datum.Date == abwesenheit.Bis.Date
-            || datum.DayOfWeek == DayOfWeek.Sunday
-            || datum.Day == letzterTagImMonat;
-
-        if (beginnt && endet)
-        {
-            return "absence-single";
-        }
-
-        if (beginnt)
-        {
-            return "absence-start";
-        }
-
-        if (endet)
-        {
-            return "absence-end";
-        }
-
-        return "absence-middle";
-    }
-
-    private bool IstAbwesenheitsSegmentStart(Abwesenheit abwesenheit, DateTime datum)
-    {
-        return datum.Date == abwesenheit.Von.Date
-            || datum.DayOfWeek == DayOfWeek.Monday
-            || datum.Day == 1;
-    }
 }

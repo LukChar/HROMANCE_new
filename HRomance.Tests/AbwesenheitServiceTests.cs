@@ -76,6 +76,100 @@ public class AbwesenheitServiceTests
     }
 
     [Fact]
+    public async Task DerselbeAntragWirdBeiMehrfachemSubmitNurEinmalGespeichert()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var fritz = await testdatenbank.MitarbeiterHinzufuegen("Fritz");
+        var antrag = NeuerPersoenlicherAntrag("Urlaub");
+
+        var erstesSpeichern = await testdatenbank.Service
+            .PersoenlichenAntragHinzufuegenAsync(antrag, fritz.Id);
+        var zweitesSpeichern = await testdatenbank.Service
+            .PersoenlichenAntragHinzufuegenAsync(antrag, fritz.Id);
+        var gespeicherteAntraege = await testdatenbank.Service.GetAllAsync();
+
+        Assert.True(erstesSpeichern);
+        Assert.False(zweitesSpeichern);
+        Assert.Single(gespeicherteAntraege);
+    }
+
+    [Fact]
+    public async Task NeuerAntragIstSofortInListeUndOffenerKpiEnthalten()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var fritz = await testdatenbank.MitarbeiterHinzufuegen("Fritz");
+        var antrag = NeuerPersoenlicherAntrag("Urlaub");
+
+        await testdatenbank.Service.PersoenlichenAntragHinzufuegenAsync(antrag, fritz.Id);
+        var antraege = await testdatenbank.Service.GetByMitarbeiterAsync(fritz.Id);
+        var offeneAntraege = 0;
+
+        foreach (var gespeicherterAntrag in antraege)
+        {
+            if (gespeicherterAntrag.Status == "Offen")
+            {
+                offeneAntraege++;
+            }
+        }
+
+        Assert.Single(antraege);
+        Assert.Equal(antrag.Id, antraege[0].Id);
+        Assert.Equal(1, offeneAntraege);
+    }
+
+    [Fact]
+    public void MehrtaegigeAbwesenheitUmfasstStartMitteUndEnde()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var abwesenheit = NeueAbwesenheit(
+            new DateTime(2026, 8, 19),
+            new DateTime(2026, 8, 21));
+        var sichtbareTage = 0;
+
+        for (var tag = 18; tag <= 22; tag++)
+        {
+            var datum = new DateTime(2026, 8, tag);
+
+            if (testdatenbank.Service.IstAbwesendAmTag(abwesenheit, datum))
+            {
+                sichtbareTage++;
+            }
+        }
+
+        Assert.Equal(3, sichtbareTage);
+        Assert.Equal("absence-start", testdatenbank.Service.KalenderSegmentKlasse(abwesenheit, new DateTime(2026, 8, 19)));
+        Assert.Equal("absence-middle", testdatenbank.Service.KalenderSegmentKlasse(abwesenheit, new DateTime(2026, 8, 20)));
+        Assert.Equal("absence-end", testdatenbank.Service.KalenderSegmentKlasse(abwesenheit, new DateTime(2026, 8, 21)));
+    }
+
+    [Fact]
+    public void AbwesenheitUeberWochenwechselBeginntInNeuerZeileNeu()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var abwesenheit = NeueAbwesenheit(
+            new DateTime(2026, 8, 21),
+            new DateTime(2026, 8, 24));
+
+        Assert.Equal("absence-start", testdatenbank.Service.KalenderSegmentKlasse(abwesenheit, new DateTime(2026, 8, 21)));
+        Assert.Equal("absence-middle", testdatenbank.Service.KalenderSegmentKlasse(abwesenheit, new DateTime(2026, 8, 22)));
+        Assert.Equal("absence-end", testdatenbank.Service.KalenderSegmentKlasse(abwesenheit, new DateTime(2026, 8, 23)));
+        Assert.Equal("absence-single", testdatenbank.Service.KalenderSegmentKlasse(abwesenheit, new DateTime(2026, 8, 24)));
+        Assert.True(testdatenbank.Service.IstKalenderSegmentStart(abwesenheit, new DateTime(2026, 8, 24)));
+    }
+
+    [Fact]
+    public void EintaegigeAbwesenheitWirdAlsEinzelnesSegmentDargestellt()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var abwesenheit = NeueAbwesenheit(
+            new DateTime(2026, 8, 20),
+            new DateTime(2026, 8, 20));
+
+        Assert.Equal("absence-single", testdatenbank.Service.KalenderSegmentKlasse(abwesenheit, new DateTime(2026, 8, 20)));
+        Assert.True(testdatenbank.Service.IstKalenderSegmentStart(abwesenheit, new DateTime(2026, 8, 20)));
+    }
+
+    [Fact]
     public void OffenerAntragIstImKalenderSichtbarUndAbgelehnterNicht()
     {
         using var testdatenbank = new Testdatenbank();
@@ -249,6 +343,18 @@ public class AbwesenheitServiceTests
             Von = new DateTime(2026, 8, 20),
             Bis = new DateTime(2026, 8, 20),
             Status = "Offen"
+        };
+    }
+
+    private static Abwesenheit NeueAbwesenheit(DateTime von, DateTime bis)
+    {
+        return new Abwesenheit
+        {
+            MitarbeiterId = 1,
+            Typ = "Urlaub",
+            Von = von,
+            Bis = bis,
+            Status = "Genehmigt"
         };
     }
 

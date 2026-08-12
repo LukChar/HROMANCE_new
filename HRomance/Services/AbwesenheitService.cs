@@ -45,7 +45,9 @@ public class AbwesenheitService
         Abwesenheit antrag,
         int mitarbeiterId)
     {
-        if (mitarbeiterId <= 0 || antrag.Bis.Date < antrag.Von.Date)
+        if (antrag.Id != 0
+            || mitarbeiterId <= 0
+            || antrag.Bis.Date < antrag.Von.Date)
         {
             return false;
         }
@@ -155,6 +157,45 @@ public class AbwesenheitService
         return abwesenheit.Status != "Abgelehnt"
             && abwesenheit.Von.Date <= datum.Date
             && abwesenheit.Bis.Date >= datum.Date;
+    }
+
+    public string KalenderSegmentKlasse(Abwesenheit abwesenheit, DateTime datum)
+    {
+        var beginnt = IstKalenderSegmentStart(abwesenheit, datum);
+        var endet = IstKalenderSegmentEnde(abwesenheit, datum);
+
+        if (beginnt && endet)
+        {
+            return "absence-single";
+        }
+
+        if (beginnt)
+        {
+            return "absence-start";
+        }
+
+        if (endet)
+        {
+            return "absence-end";
+        }
+
+        return "absence-middle";
+    }
+
+    public bool IstKalenderSegmentStart(Abwesenheit abwesenheit, DateTime datum)
+    {
+        return datum.Date == abwesenheit.Von.Date
+            || datum.DayOfWeek == DayOfWeek.Monday
+            || datum.Day == 1;
+    }
+
+    private bool IstKalenderSegmentEnde(Abwesenheit abwesenheit, DateTime datum)
+    {
+        var letzterTagImMonat = DateTime.DaysInMonth(datum.Year, datum.Month);
+
+        return datum.Date == abwesenheit.Bis.Date
+            || datum.DayOfWeek == DayOfWeek.Sunday
+            || datum.Day == letzterTagImMonat;
     }
 
     public async Task DeleteAsync(int id)

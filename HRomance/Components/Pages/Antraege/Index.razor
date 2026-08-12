@@ -132,7 +132,7 @@
         <div class="status-popup" @onclick:stopPropagation="true">
             <h2>Neuer Antrag</h2>
 
-            <EditForm Model="neuerAntrag" OnValidSubmit="NeuenAntragSpeichern" FormName="NeuerAntrag">
+            <EditForm Model="@neuerAntrag" OnValidSubmit="NeuenAntragSpeichern" FormName="NeuerAntrag">
                 <DataAnnotationsValidator />
 
                 <div class="request-form">
@@ -169,7 +169,9 @@
 
                 <div class="popup-actions">
                     <button type="button" class="cancel-button" @onclick="NeuerAntragSchliessen">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary">Antrag stellen</button>
+                    <button type="submit" class="btn btn-primary" disabled="@speichertAntrag">
+                        @(speichertAntrag ? "Wird gespeichert..." : "Antrag stellen")
+                    </button>
                 </div>
             </EditForm>
         </div>
@@ -222,6 +224,7 @@
     private bool neuerAntragSichtbar;
     private Abwesenheit neuerAntrag = new();
     private string antragFehler = string.Empty;
+    private bool speichertAntrag;
 
     protected override async Task OnInitializedAsync()
     {
@@ -307,6 +310,7 @@
     {
         neuerAntrag = new Abwesenheit
         {
+            MitarbeiterId = mitarbeiterId,
             Typ = "Urlaub",
             Von = DateTime.Today,
             Bis = DateTime.Today,
@@ -319,6 +323,11 @@
 
     private void NeuerAntragSchliessen()
     {
+        if (speichertAntrag)
+        {
+            return;
+        }
+
         neuerAntragSichtbar = false;
         neuerAntrag = new Abwesenheit();
         antragFehler = string.Empty;
@@ -326,6 +335,11 @@
 
     private async Task NeuenAntragSpeichern()
     {
+        if (speichertAntrag)
+        {
+            return;
+        }
+
         if (mitarbeiterId == 0)
         {
             antragFehler = "Dem Benutzer ist kein Mitarbeiter zugeordnet.";
@@ -338,18 +352,32 @@
             return;
         }
 
-        var gespeichert = await AbwesenheitService.PersoenlichenAntragHinzufuegenAsync(
-            neuerAntrag,
-            mitarbeiterId);
+        speichertAntrag = true;
 
-        if (!gespeichert)
+        try
+        {
+            var gespeichert = await AbwesenheitService.PersoenlichenAntragHinzufuegenAsync(
+                neuerAntrag,
+                mitarbeiterId);
+
+            if (!gespeichert)
+            {
+                antragFehler = "Der Antrag konnte nicht gespeichert werden.";
+                return;
+            }
+
+            speichertAntrag = false;
+            NeuerAntragSchliessen();
+            await AntraegeLaden();
+        }
+        catch
         {
             antragFehler = "Der Antrag konnte nicht gespeichert werden.";
-            return;
         }
-
-        NeuerAntragSchliessen();
-        await AntraegeLaden();
+        finally
+        {
+            speichertAntrag = false;
+        }
     }
 
     private void BestaetigungOeffnen(Abwesenheit antrag, string status)
