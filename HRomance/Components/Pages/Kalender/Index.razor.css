@@ -337,6 +337,17 @@
     white-space: nowrap;
 }
 
+.absence-start,
+.absence-single {
+    overflow: visible;
+}
+
+.absence-start strong,
+.absence-single strong {
+    width: calc(var(--segment-days) * 100% + (var(--segment-days) - 1) * 13px);
+    max-width: none;
+}
+
 .absence-start {
     margin-left: 0;
     margin-right: -7px;

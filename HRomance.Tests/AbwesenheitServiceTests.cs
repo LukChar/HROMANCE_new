@@ -170,6 +170,22 @@ public class AbwesenheitServiceTests
     }
 
     [Fact]
+    public void SichtbareTextbreiteEndetAmWochenende()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var abwesenheit = NeueAbwesenheit(
+            new DateTime(2026, 8, 21),
+            new DateTime(2026, 8, 25));
+
+        Assert.Equal(3, testdatenbank.Service.SichtbareKalenderSegmenttage(
+            abwesenheit,
+            new DateTime(2026, 8, 21)));
+        Assert.Equal(2, testdatenbank.Service.SichtbareKalenderSegmenttage(
+            abwesenheit,
+            new DateTime(2026, 8, 24)));
+    }
+
+    [Fact]
     public void UeberlappendeAbwesenheitenBehaltenIhreSpurBisZumEnde()
     {
         using var testdatenbank = new Testdatenbank();

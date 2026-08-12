@@ -98,6 +98,7 @@
                                     else
                                     {
                                         <div class="calendar-note absence-entry @AbwesenheitService.KalenderSegmentKlasse(abwesenheit, datum)"
+                                             style="--segment-days: @AbwesenheitService.SichtbareKalenderSegmenttage(abwesenheit, datum)"
                                              @onclick="() => AbwesenheitPopupOeffnen(abwesenheit)"
                                              @onclick:stopPropagation="true"
                                              @ondblclick:stopPropagation="true">

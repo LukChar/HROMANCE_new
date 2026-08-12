@@ -220,6 +220,27 @@ public class AbwesenheitService
             || datum.Day == 1;
     }
 
+    public int SichtbareKalenderSegmenttage(Abwesenheit abwesenheit, DateTime datum)
+    {
+        var letzterTag = abwesenheit.Bis.Date;
+        var tageBisSonntag = (7 - (int)datum.DayOfWeek) % 7;
+        var sonntag = datum.Date.AddDays(tageBisSonntag);
+        var monatsende = new DateTime(datum.Year, datum.Month,
+            DateTime.DaysInMonth(datum.Year, datum.Month));
+
+        if (sonntag < letzterTag)
+        {
+            letzterTag = sonntag;
+        }
+
+        if (monatsende < letzterTag)
+        {
+            letzterTag = monatsende;
+        }
+
+        return (letzterTag - datum.Date).Days + 1;
+    }
+
     private bool IstKalenderSegmentEnde(Abwesenheit abwesenheit, DateTime datum)
     {
         var letzterTagImMonat = DateTime.DaysInMonth(datum.Year, datum.Month);
