@@ -159,6 +159,37 @@ public class AbwesenheitService
             && abwesenheit.Bis.Date >= datum.Date;
     }
 
+    public Dictionary<int, int> KalenderSpurenBestimmen(List<Abwesenheit> abwesenheiten)
+    {
+        var sortierteAbwesenheiten = abwesenheiten
+            .OrderBy(abwesenheit => abwesenheit.Von)
+            .ThenBy(abwesenheit => abwesenheit.Bis)
+            .ThenBy(abwesenheit => abwesenheit.Id)
+            .ToList();
+        var spuren = new List<List<Abwesenheit>>();
+        var ergebnis = new Dictionary<int, int>();
+
+        foreach (var abwesenheit in sortierteAbwesenheiten)
+        {
+            var spur = 0;
+
+            while (SpurIstBelegt(spuren, spur, abwesenheit))
+            {
+                spur++;
+            }
+
+            if (spur == spuren.Count)
+            {
+                spuren.Add(new List<Abwesenheit>());
+            }
+
+            spuren[spur].Add(abwesenheit);
+            ergebnis[abwesenheit.Id] = spur;
+        }
+
+        return ergebnis;
+    }
+
     public string KalenderSegmentKlasse(Abwesenheit abwesenheit, DateTime datum)
     {
         var beginnt = IstKalenderSegmentStart(abwesenheit, datum);
@@ -196,6 +227,30 @@ public class AbwesenheitService
         return datum.Date == abwesenheit.Bis.Date
             || datum.DayOfWeek == DayOfWeek.Sunday
             || datum.Day == letzterTagImMonat;
+    }
+
+    private bool SpurIstBelegt(
+        List<List<Abwesenheit>> spuren,
+        int spur,
+        Abwesenheit abwesenheit)
+    {
+        if (spur >= spuren.Count)
+        {
+            return false;
+        }
+
+        foreach (var vorhandeneAbwesenheit in spuren[spur])
+        {
+            var ueberlappt = abwesenheit.Von.Date <= vorhandeneAbwesenheit.Bis.Date
+                && vorhandeneAbwesenheit.Von.Date <= abwesenheit.Bis.Date;
+
+            if (ueberlappt)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public async Task DeleteAsync(int id)

@@ -170,6 +170,50 @@ public class AbwesenheitServiceTests
     }
 
     [Fact]
+    public void UeberlappendeAbwesenheitenBehaltenIhreSpurBisZumEnde()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var ersterUrlaub = NeueAbwesenheit(
+            new DateTime(2026, 8, 19),
+            new DateTime(2026, 8, 21));
+        ersterUrlaub.Id = 1;
+        var zweiterUrlaub = NeueAbwesenheit(
+            new DateTime(2026, 8, 20),
+            new DateTime(2026, 8, 21));
+        zweiterUrlaub.Id = 2;
+
+        var spuren = testdatenbank.Service.KalenderSpurenBestimmen(
+            new List<Abwesenheit> { zweiterUrlaub, ersterUrlaub });
+
+        Assert.Equal(0, spuren[ersterUrlaub.Id]);
+        Assert.Equal(1, spuren[zweiterUrlaub.Id]);
+        Assert.True(testdatenbank.Service.IstAbwesendAmTag(zweiterUrlaub, new DateTime(2026, 8, 20)));
+        Assert.True(testdatenbank.Service.IstAbwesendAmTag(zweiterUrlaub, new DateTime(2026, 8, 21)));
+    }
+
+    [Fact]
+    public void SpurBleibtAuchNachWochenwechselGleich()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var ersterUrlaub = NeueAbwesenheit(
+            new DateTime(2026, 8, 21),
+            new DateTime(2026, 8, 24));
+        ersterUrlaub.Id = 1;
+        var zweiterUrlaub = NeueAbwesenheit(
+            new DateTime(2026, 8, 22),
+            new DateTime(2026, 8, 25));
+        zweiterUrlaub.Id = 2;
+
+        var spuren = testdatenbank.Service.KalenderSpurenBestimmen(
+            new List<Abwesenheit> { ersterUrlaub, zweiterUrlaub });
+
+        Assert.Equal(0, spuren[ersterUrlaub.Id]);
+        Assert.Equal(1, spuren[zweiterUrlaub.Id]);
+        Assert.Equal("absence-single", testdatenbank.Service.KalenderSegmentKlasse(ersterUrlaub, new DateTime(2026, 8, 24)));
+        Assert.Equal("absence-start", testdatenbank.Service.KalenderSegmentKlasse(zweiterUrlaub, new DateTime(2026, 8, 24)));
+    }
+
+    [Fact]
     public void OffenerAntragIstImKalenderSichtbarUndAbgelehnterNicht()
     {
         using var testdatenbank = new Testdatenbank();

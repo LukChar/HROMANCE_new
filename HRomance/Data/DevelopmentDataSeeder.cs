@@ -96,6 +96,12 @@ public static class DevelopmentDataSeeder
         await AuftragAnlegen(context, "Maschinenprüfung",
             "Technische Kontrolle und Dokumentation einer Bestandsmaschine.", "St. Pölten",
             heute.AddDays(14), heute.AddDays(16), alpenTechnik, [elektriker, mechaniker], []);
+        await AuftragAnlegen(context, "Standortbegehung Verwaltung",
+            "Begehung und Abstimmung für den nächsten Kundeneinsatz.", "Linz",
+            heute.AddDays(3), heute.AddDays(3), alpenTechnik, [], [martin]);
+        await AuftragAnlegen(context, "Einsatzplanung Nordwerk",
+            "Vorbereitung und Kontrolle der geplanten Mitarbeitereinsätze.", "Wels",
+            heute.AddDays(5), heute.AddDays(5), nordwerk, [], [daniel]);
 
         await ArbeitszeitAnlegen(context, fritz, heute.AddDays(-3), new TimeOnly(8, 0), new TimeOnly(16, 30), 30);
         await ArbeitszeitAnlegen(context, hans, heute.AddDays(-3), new TimeOnly(7, 30), new TimeOnly(16, 0), 30);
@@ -103,6 +109,10 @@ public static class DevelopmentDataSeeder
         await ArbeitszeitAnlegen(context, anna, heute.AddDays(-2), new TimeOnly(8, 0), new TimeOnly(14, 0), 30);
         await ArbeitszeitAnlegen(context, lisa, heute.AddDays(-1), new TimeOnly(8, 0), new TimeOnly(12, 0), 0);
         await ArbeitszeitAnlegen(context, fritz, heute.AddDays(-1), new TimeOnly(7, 30), new TimeOnly(16, 0), 30);
+        await ArbeitszeitAnlegen(context, martin, heute.AddDays(-3), new TimeOnly(8, 0), new TimeOnly(16, 30), 30);
+        await ArbeitszeitAnlegen(context, martin, heute.AddDays(-1), new TimeOnly(8, 0), new TimeOnly(16, 30), 30);
+        await ArbeitszeitAnlegen(context, daniel, heute.AddDays(-3), new TimeOnly(8, 0), new TimeOnly(16, 30), 30);
+        await ArbeitszeitAnlegen(context, daniel, heute.AddDays(-1), new TimeOnly(8, 0), new TimeOnly(16, 30), 30);
 
         await AbwesenheitAnlegen(context, fritz, heute.AddDays(8), heute.AddDays(9), "Urlaub", "Genehmigt", "Demo-Urlaub");
         await AbwesenheitAnlegen(context, hans, heute.AddDays(15), heute.AddDays(16), "Urlaub", "Offen", "Geplanter Urlaub");

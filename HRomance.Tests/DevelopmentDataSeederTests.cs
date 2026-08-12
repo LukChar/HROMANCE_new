@@ -156,7 +156,69 @@ public class DevelopmentDataSeederTests
         await testdatenbank.SeedAusfuehren();
         await testdatenbank.SeedAusfuehren();
 
-        Assert.Equal(7, await testdatenbank.Context.Auftraege.CountAsync());
+        Assert.Equal(9, await testdatenbank.Context.Auftraege.CountAsync());
+    }
+
+    [Theory]
+    [InlineData("P006", "Standortbegehung Verwaltung")]
+    [InlineData("P007", "Einsatzplanung Nordwerk")]
+    public async Task ManagerBesitztEigeneArbeitszeitenUndEigenenAuftrag(
+        string personalnummer,
+        string auftragstitel)
+    {
+        await using var testdatenbank = await Testdatenbank.Erstellen();
+        await testdatenbank.SeedAusfuehren();
+
+        var mitarbeiter = await testdatenbank.Context.Mitarbeiter
+            .FirstAsync(m => m.Personalnummer == personalnummer);
+        var arbeitszeiten = await testdatenbank.Context.Arbeitszeiten
+            .Where(a => a.MitarbeiterId == mitarbeiter.Id)
+            .ToListAsync();
+        var auftragService = new AuftragService(testdatenbank.Context);
+        var auftraege = await auftragService.GetByMitarbeiterAsync(mitarbeiter.Id);
+
+        Assert.Equal(2, arbeitszeiten.Count);
+        Assert.Single(auftraege);
+        Assert.Equal(auftragstitel, auftraege[0].Titel);
+    }
+
+    [Fact]
+    public async Task ErneutesSeedErzeugtKeineDoppeltenManagerDemodaten()
+    {
+        await using var testdatenbank = await Testdatenbank.Erstellen();
+        await testdatenbank.SeedAusfuehren();
+        await testdatenbank.SeedAusfuehren();
+
+        var manager = await testdatenbank.Context.Mitarbeiter
+            .Where(m => m.Personalnummer == "P006" || m.Personalnummer == "P007")
+            .ToListAsync();
+        var managerIds = manager.Select(m => m.Id).ToList();
+        var arbeitszeiten = await testdatenbank.Context.Arbeitszeiten
+            .Where(a => managerIds.Contains(a.MitarbeiterId))
+            .ToListAsync();
+
+        Assert.Equal(4, arbeitszeiten.Count);
+        Assert.Equal(9, await testdatenbank.Context.Auftraege.CountAsync());
+    }
+
+    [Fact]
+    public async Task PersoenlicheManagerDatenEnthaltenKeineFremdenEintraege()
+    {
+        await using var testdatenbank = await Testdatenbank.Erstellen();
+        await testdatenbank.SeedAusfuehren();
+
+        var fritz = await testdatenbank.Context.Mitarbeiter.FirstAsync(m => m.Personalnummer == "P001");
+        var martin = await testdatenbank.Context.Mitarbeiter.FirstAsync(m => m.Personalnummer == "P006");
+        var daniel = await testdatenbank.Context.Mitarbeiter.FirstAsync(m => m.Personalnummer == "P007");
+        var arbeitszeitService = new ArbeitszeitService(testdatenbank.Context);
+
+        var fritzZeiten = await arbeitszeitService.GetByMitarbeiterAsync(fritz.Id);
+        var martinZeiten = await arbeitszeitService.GetByMitarbeiterAsync(martin.Id);
+        var danielZeiten = await arbeitszeitService.GetByMitarbeiterAsync(daniel.Id);
+
+        Assert.All(fritzZeiten, zeit => Assert.Equal(fritz.Id, zeit.MitarbeiterId));
+        Assert.All(martinZeiten, zeit => Assert.Equal(martin.Id, zeit.MitarbeiterId));
+        Assert.All(danielZeiten, zeit => Assert.Equal(daniel.Id, zeit.MitarbeiterId));
     }
 
     private sealed class Testdatenbank : IAsyncDisposable

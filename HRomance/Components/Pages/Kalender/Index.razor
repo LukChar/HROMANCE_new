@@ -83,20 +83,30 @@
                              @ondblclick="() => EintragAmTagHinzufuegen(datum)">
                             <div class="day-number">@tag</div>
 
-                            @foreach (var abwesenheit in abwesenheitenAmTag)
+                            @for (var spur = 0; spur <= HoechsteAbwesenheitsspurAmTag(abwesenheitenAmTag); spur++)
                             {
+                                var abwesenheit = AbwesenheitInSpur(abwesenheitenAmTag, spur);
+
                                 @if (angezeigteEintraege < 4)
                                 {
                                     angezeigteEintraege++;
-                                    <div class="calendar-note absence-entry @AbwesenheitService.KalenderSegmentKlasse(abwesenheit, datum)"
-                                         @onclick="() => AbwesenheitPopupOeffnen(abwesenheit)"
-                                         @onclick:stopPropagation="true"
-                                         @ondblclick:stopPropagation="true">
-                                        @if (AbwesenheitService.IstKalenderSegmentStart(abwesenheit, datum))
-                                        {
-                                            <strong>@MitarbeiterName(abwesenheit.Mitarbeiter) · @abwesenheit.Typ · @abwesenheit.Status</strong>
-                                        }
-                                    </div>
+
+                                    @if (abwesenheit == null)
+                                    {
+                                        <div class="absence-lane-placeholder"></div>
+                                    }
+                                    else
+                                    {
+                                        <div class="calendar-note absence-entry @AbwesenheitService.KalenderSegmentKlasse(abwesenheit, datum)"
+                                             @onclick="() => AbwesenheitPopupOeffnen(abwesenheit)"
+                                             @onclick:stopPropagation="true"
+                                             @ondblclick:stopPropagation="true">
+                                            @if (AbwesenheitService.IstKalenderSegmentStart(abwesenheit, datum))
+                                            {
+                                                <strong>@MitarbeiterName(abwesenheit.Mitarbeiter) · @abwesenheit.Typ · @abwesenheit.Status</strong>
+                                            }
+                                        </div>
+                                    }
                                 }
                             }
 
@@ -615,6 +625,7 @@
     private List<Mitarbeiter> mitarbeiterListe = new();
     private List<Arbeitszeit> arbeitszeiten = new();
     private List<Abwesenheit> abwesenheiten = new();
+    private Dictionary<int, int> abwesenheitsspuren = new();
     private DateTime angezeigterMonat = new(DateTime.Today.Year, DateTime.Today.Month, 1);
     private DateTime? ausgewaehltesDatum;
     private string ausgewaehlteEintragsart = string.Empty;
@@ -656,6 +667,7 @@
         auftraege = await AuftragService.GetByMitarbeiterAsync(mitarbeiterId);
         arbeitszeiten = await ArbeitszeitService.GetByMitarbeiterAsync(mitarbeiterId);
         abwesenheiten = await AbwesenheitService.GetByMitarbeiterAsync(mitarbeiterId);
+        AbwesenheitsspurenAktualisieren();
     }
 
     [CascadingParameter]
@@ -795,6 +807,7 @@
         neueAbwesenheit.Status = "Offen";
         await AbwesenheitService.AddAsync(neueAbwesenheit);
         abwesenheiten = await AbwesenheitService.GetByMitarbeiterAsync(mitarbeiterId);
+        AbwesenheitsspurenAktualisieren();
         EintragAbbrechen();
     }
 
@@ -879,6 +892,7 @@
 
         await AbwesenheitService.UpdateAsync(bearbeiteteAbwesenheit);
         abwesenheiten = await AbwesenheitService.GetByMitarbeiterAsync(mitarbeiterId);
+        AbwesenheitsspurenAktualisieren();
         BearbeitungAbbrechen();
     }
 
@@ -886,6 +900,7 @@
     {
         await AbwesenheitService.DeleteAsync(id);
         abwesenheiten = await AbwesenheitService.GetByMitarbeiterAsync(mitarbeiterId);
+        AbwesenheitsspurenAktualisieren();
 
         if (bearbeiteteAbwesenheit.Id == id)
         {
@@ -1228,6 +1243,43 @@
         }
 
         return passendeAbwesenheiten;
+    }
+
+    private void AbwesenheitsspurenAktualisieren()
+    {
+        abwesenheitsspuren = AbwesenheitService.KalenderSpurenBestimmen(abwesenheiten);
+    }
+
+    private int HoechsteAbwesenheitsspurAmTag(List<Abwesenheit> abwesenheitenAmTag)
+    {
+        var hoechsteSpur = -1;
+
+        foreach (var abwesenheit in abwesenheitenAmTag)
+        {
+            if (abwesenheitsspuren.TryGetValue(abwesenheit.Id, out var spur)
+                && spur > hoechsteSpur)
+            {
+                hoechsteSpur = spur;
+            }
+        }
+
+        return hoechsteSpur;
+    }
+
+    private Abwesenheit? AbwesenheitInSpur(
+        List<Abwesenheit> abwesenheitenAmTag,
+        int gesuchteSpur)
+    {
+        foreach (var abwesenheit in abwesenheitenAmTag)
+        {
+            if (abwesenheitsspuren.TryGetValue(abwesenheit.Id, out var spur)
+                && spur == gesuchteSpur)
+            {
+                return abwesenheit;
+            }
+        }
+
+        return null;
     }
 
 }
