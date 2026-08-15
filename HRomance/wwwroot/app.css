@@ -85,6 +85,6 @@ h1:focus {
     border: none;
 }
 
-    .btn-delete:hover {
-        background-color: #b91c1c;
-    }
+.btn-delete:hover {
+    background-color: #b91c1c;
+}
