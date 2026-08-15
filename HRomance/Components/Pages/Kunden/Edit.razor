@@ -9,65 +9,97 @@
 
 <PageTitle>Kunde bearbeiten</PageTitle>
 
-<h3>Kunde bearbeiten</h3>
-
-@if (kunde == null)
-{
-    <p>Lade Daten...</p>
-}
-else
-{
-    <EditForm Model="kunde" OnValidSubmit="Speichern">
-        <DataAnnotationsValidator />
-        <ValidationSummary />
-
-        <div class="mb-3">
-            <label class="form-label">Firmenname</label>
-            <InputText class="form-control"
-                       @bind-Value="kunde.Firmenname" />
+<div class="edit-page">
+    <div class="page-header">
+        <div>
+            <h1>Kunde bearbeiten</h1>
+            <p>Kundendaten aktualisieren</p>
         </div>
 
-        <div class="mb-3">
-            <label class="form-label">Ansprechpartner</label>
-            <InputText class="form-control"
-                       @bind-Value="kunde.Ansprechpartner" />
+        <a href="/kunden/details/@Id" class="back-button">Zurück</a>
+    </div>
+
+    @if (!istGeladen)
+    {
+        <p>Lade Daten...</p>
+    }
+    else if (kunde == null)
+    {
+        <div class="message-card">
+            Kunde wurde nicht gefunden.
         </div>
+    }
+    else
+    {
+        <div class="form-card">
+            <EditForm Model="kunde"
+                      OnValidSubmit="Speichern"
+                      FormName="KundeBearbeiten">
+                <DataAnnotationsValidator />
 
-        <div class="mb-3">
-            <label class="form-label">E-Mail</label>
-            <InputText class="form-control"
-                       @bind-Value="kunde.Email" />
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Firmenname</label>
+                        <InputText class="form-input" @bind-Value="kunde.Firmenname" />
+                        <ValidationMessage For="@(() => kunde.Firmenname)" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Ansprechpartner</label>
+                        <InputText class="form-input" @bind-Value="kunde.Ansprechpartner" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>E-Mail</label>
+                        <InputText class="form-input" @bind-Value="kunde.Email" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Telefon</label>
+                        <InputText class="form-input" @bind-Value="kunde.Telefon" />
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button"
+                            class="cancel-button"
+                            @onclick="Abbrechen">
+                        Abbrechen
+                    </button>
+
+                    <button type="submit" class="save-button">
+                        Änderungen speichern
+                    </button>
+                </div>
+            </EditForm>
         </div>
-
-        <div class="mb-3">
-            <label class="form-label">Telefon</label>
-            <InputText class="form-control"
-                       @bind-Value="kunde.Telefon" />
-        </div>
-
-        <button type="submit" class="btn btn-success me-2">
-            Speichern
-        </button>
-
-        <button type="button"
-                class="btn btn-secondary"
-                @onclick="Zurueck">
-            Abbrechen
-        </button>
-
-    </EditForm>
-}
+    }
+</div>
 
 @code {
-
     [Parameter]
     public int Id { get; set; }
 
     private Kunde? kunde;
+    private bool istGeladen;
 
     protected override async Task OnInitializedAsync()
     {
-        kunde = await KundeService.GetByIdAsync(Id);
+        var geladenerKunde = await KundeService.GetByIdAsync(Id);
+
+        if (geladenerKunde != null)
+        {
+            kunde = new Kunde
+            {
+                Id = geladenerKunde.Id,
+                Firmenname = geladenerKunde.Firmenname,
+                Ansprechpartner = geladenerKunde.Ansprechpartner,
+                Email = geladenerKunde.Email,
+                Telefon = geladenerKunde.Telefon
+            };
+        }
+
+        istGeladen = true;
     }
 
     private async Task Speichern()
@@ -75,13 +107,12 @@ else
         if (kunde != null)
         {
             await KundeService.UpdateAsync(kunde);
-            Navigation.NavigateTo("/kunden");
+            Navigation.NavigateTo($"/kunden/details/{kunde.Id}");
         }
     }
 
-    private void Zurueck()
+    private void Abbrechen()
     {
-        Navigation.NavigateTo("/kunden");
+        Navigation.NavigateTo($"/kunden/details/{Id}");
     }
-
 }

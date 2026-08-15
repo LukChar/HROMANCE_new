@@ -1,0 +1,29 @@
+.popup-background { position: fixed; z-index: 1100; inset: 0; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(0,0,0,.35); }
+.order-popup { width: 100%; max-width: 700px; max-height: 90vh; overflow-y: auto; padding: 22px; border: 1px solid #d7dbe0; border-radius: 8px; background: white; }
+.order-popup h2 { margin: 0 0 18px; font-size: 22px; }
+.order-popup h3 { margin: 18px 0 10px; font-size: 16px; }
+.popup-details { display: flex; flex-direction: column; gap: 7px; font-size: 14px; }
+.popup-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 9px; margin-top: 22px; }
+.popup-actions button { padding: 8px 12px; border: 1px solid #cfd4da; border-radius: 6px; color: #30343b; background: white; font-size: 14px; }
+.popup-actions .save-button { border-color: #2563eb; color: white; background: #2563eb; }
+.popup-actions .delete-button { border-color: #fecaca; color: #b91c1c; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+.form-group { display: flex; flex-direction: column; }
+.form-group label { margin-bottom: 6px; font-size: 14px; }
+.form-input, .qualification-area > input, .employee-filters input, .employee-filters select { width: 100%; padding: 9px 11px; border: 1px solid #cfd4da; border-radius: 6px; background: white; font-size: 14px; }
+.full-width { grid-column: 1 / -1; }
+textarea.form-input { min-height: 80px; resize: vertical; }
+.qualification-area { margin-top: 18px; }
+.qualification-list, .employee-list { display: grid; gap: 8px; max-height: 240px; margin-top: 10px; overflow-y: auto; }
+.qualification-list label, .employee-option { display: flex; gap: 9px; padding: 9px; border: 1px solid #e2e5e9; border-radius: 5px; }
+.qualification-list label { align-items: center; justify-content: flex-start; }
+.qualification-list input { width: auto; margin: 0; flex: 0 0 auto; }
+.employee-filters { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; }
+.employee-option strong, .employee-option small { display: block; }
+.employee-option small { margin-top: 3px; color: #6b7280; }
+.employee-option.unavailable { background: #f3f4f6; opacity: .75; }
+.assigned-list { display: grid; gap: 8px; margin-top: 16px; }
+.assigned-employee { display: flex; align-items: center; justify-content: space-between; padding: 9px; border: 1px solid #e2e5e9; border-radius: 5px; }
+.assigned-employee button { padding: 6px 9px; border: 1px solid #fecaca; border-radius: 5px; color: #b91c1c; background: white; }
+.form-error, .validation-message { color: #b91c1c; font-size: 13px; }
+@media (max-width: 600px) { .form-grid, .employee-filters { grid-template-columns: 1fr; } .full-width { grid-column: auto; } }

@@ -1,0 +1,156 @@
+.details-page {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.page-header h1 {
+    margin: 0;
+    font-size: 30px;
+    font-weight: 600;
+    color: #202124;
+}
+
+.page-header p {
+    margin-top: 6px;
+    margin-bottom: 0;
+    color: #6b7280;
+}
+
+.back-button {
+    display: inline-block;
+    padding: 9px 15px;
+    border: 1px solid #d7dbe0;
+    border-radius: 6px;
+    color: #30343b;
+    text-decoration: none;
+    font-size: 14px;
+    background-color: white;
+}
+
+.back-button:hover {
+    background-color: #f5f6f7;
+    color: #202124;
+}
+
+.details-card,
+.message-card {
+    background-color: white;
+    border: 1px solid #e2e5e9;
+    border-radius: 8px;
+    padding: 25px;
+}
+
+.details-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 25px;
+}
+
+.details-grid div {
+    display: flex;
+    flex-direction: column;
+}
+
+.details-label {
+    margin-bottom: 6px;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.details-grid strong {
+    color: #202124;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.details-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #e2e5e9;
+}
+
+.edit-button {
+    display: inline-block;
+    padding: 10px 18px;
+    border-radius: 6px;
+    background-color: #2563eb;
+    color: white;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.edit-button:hover {
+    background-color: #1d4ed8;
+    color: white;
+}
+
+.delete-button {
+    padding: 10px 18px;
+    border: none;
+    border-radius: 6px;
+    background-color: #dc2626;
+    color: white;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.delete-button:hover {
+    background-color: #b91c1c;
+}
+
+.delete-confirmation {
+    margin-top: 20px;
+    padding: 18px;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    background-color: #fef2f2;
+}
+
+.delete-confirmation p {
+    margin: 0;
+    color: #7f1d1d;
+}
+
+.confirmation-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.cancel-button {
+    padding: 10px 16px;
+    border: 1px solid #d7dbe0;
+    border-radius: 6px;
+    color: #30343b;
+    background-color: white;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.cancel-button:hover {
+    background-color: #f5f6f7;
+}
+
+@media (max-width: 700px) {
+    .details-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .page-header {
+        display: block;
+    }
+
+    .page-header .back-button {
+        margin-top: 15px;
+    }
+}

@@ -1,0 +1,60 @@
+﻿@page "/qualifikationen/create"
+@rendermode InteractiveServer
+
+@using HRomance.Models
+@using HRomance.Services
+
+@inject QualifikationService QualifikationService
+@inject NavigationManager Navigation
+
+<PageTitle>Qualifikation hinzufügen</PageTitle>
+
+<div class="create-page">
+    <div class="page-header">
+        <div>
+            <h1>Qualifikation hinzufügen</h1>
+            <p>Neue Qualifikation anlegen</p>
+        </div>
+
+        <a href="/qualifikationen" class="back-button">Zurück</a>
+    </div>
+
+    <div class="form-card">
+        <EditForm Model="qualifikation"
+                  OnValidSubmit="Speichern"
+                  FormName="QualifikationErstellen">
+            <DataAnnotationsValidator />
+
+            <div class="form-group">
+                <label>Name</label>
+                <InputText class="form-input" @bind-Value="qualifikation.Name" />
+                <ValidationMessage For="@(() => qualifikation.Name)" />
+            </div>
+
+            <div class="form-actions">
+                <button type="button"
+                        class="cancel-button"
+                        @onclick="Abbrechen">
+                    Abbrechen
+                </button>
+
+                <button type="submit" class="save-button">Speichern</button>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private Qualifikation qualifikation = new Qualifikation();
+
+    private async Task Speichern()
+    {
+        await QualifikationService.AddAsync(qualifikation);
+        Navigation.NavigateTo("/qualifikationen");
+    }
+
+    private void Abbrechen()
+    {
+        Navigation.NavigateTo("/qualifikationen");
+    }
+}

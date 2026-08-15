@@ -31,8 +31,17 @@ namespace HRomance.Services
 
         public async Task UpdateAsync(Kunde kunde)
         {
-            _context.Kunden.Update(kunde);
-            await _context.SaveChangesAsync();
+            var vorhandenerKunde = await _context.Kunden.FindAsync(kunde.Id);
+
+            if (vorhandenerKunde != null)
+            {
+                vorhandenerKunde.Firmenname = kunde.Firmenname;
+                vorhandenerKunde.Ansprechpartner = kunde.Ansprechpartner;
+                vorhandenerKunde.Email = kunde.Email;
+                vorhandenerKunde.Telefon = kunde.Telefon;
+
+                await _context.SaveChangesAsync();
+            }
         }
 
         public async Task DeleteAsync(int id)

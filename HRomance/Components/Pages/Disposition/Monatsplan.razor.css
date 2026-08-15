@@ -1,0 +1,265 @@
+.month-page {
+    max-width: 1400px;
+    margin: 0 auto;
+    font-family: inherit;
+}
+
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 22px;
+}
+
+.page-header h1 {
+    margin: 0;
+    color: #202124;
+    font-size: 30px;
+    font-weight: 600;
+}
+
+.page-header p {
+    margin: 6px 0 0;
+    color: #6b7280;
+}
+
+.view-switch {
+    display: flex;
+    gap: 8px;
+}
+
+.view-switch a,
+.month-navigation button,
+.today-area button,
+.day-popup-actions button {
+    padding: 8px 14px;
+    border: 1px solid #cfd4da;
+    border-radius: 6px;
+    color: #30343b;
+    background-color: white;
+    font-size: 14px;
+    text-decoration: none;
+}
+
+.view-switch .active-view {
+    border-color: #2563eb;
+    color: white;
+    background-color: #2563eb;
+}
+
+.calendar-card {
+    padding: 16px;
+    border: 1px solid #e2e5e9;
+    border-radius: 8px;
+    background-color: white;
+}
+
+.month-navigation {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+}
+
+.month-navigation h2 {
+    min-width: 220px;
+    margin: 0;
+    color: #202124;
+    font-size: 20px;
+    text-align: center;
+}
+
+.today-area {
+    margin: 10px 0;
+    text-align: center;
+}
+
+.calendar-container {
+    overflow-x: auto;
+}
+
+.calendar-grid {
+    display: grid;
+    min-width: 900px;
+    grid-template-columns: repeat(7, 1fr);
+    border-top: 1px solid #e2e5e9;
+    border-left: 1px solid #e2e5e9;
+}
+
+.weekday,
+.day {
+    border-right: 1px solid #e2e5e9;
+    border-bottom: 1px solid #e2e5e9;
+}
+
+.weekday {
+    padding: 9px;
+    color: #606770;
+    background-color: #f8f9fa;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.day {
+    min-height: 122px;
+    padding: 6px;
+    background-color: white;
+}
+
+.empty-day {
+    background-color: #f8f9fa;
+}
+
+.today {
+    box-shadow: inset 0 0 0 2px #9ca3af;
+}
+
+.day-number {
+    margin-bottom: 5px;
+    color: #30343b;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.order-entry {
+    display: block;
+    box-sizing: border-box;
+    width: auto;
+    height: 31px;
+    margin-bottom: 3px;
+    padding: 3px 5px;
+    overflow: hidden;
+    border: 1px solid;
+    color: #30343b;
+    background-color: white;
+    font-size: 11px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.order-entry strong,
+.order-entry span {
+    display: block;
+    width: max-content;
+    white-space: nowrap;
+}
+
+.order-entry span {
+    color: #4b5563;
+}
+
+.order-entry.open,
+.day-order.open {
+    border-color: #fecaca;
+    background-color: #fef2f2;
+}
+
+.order-entry.occupied,
+.day-order.occupied {
+    border-color: #bbf7d0;
+    background-color: #f0fdf4;
+}
+
+.order-entry.start {
+    margin-right: -9px;
+    margin-left: 4px;
+    border-right: none;
+    border-radius: 4px 0 0 4px;
+}
+
+.order-entry.middle {
+    margin-right: -9px;
+    margin-left: -9px;
+    border-right: none;
+    border-left: none;
+    border-radius: 0;
+}
+
+.order-entry.end {
+    margin-right: 4px;
+    margin-left: -9px;
+    border-left: none;
+    border-radius: 0 4px 4px 0;
+}
+
+.order-entry.single {
+    margin-right: 4px;
+    margin-left: 4px;
+    border-radius: 4px;
+}
+
+.more-button {
+    width: 100%;
+    padding: 2px 5px;
+    border: none;
+    color: #4b5563;
+    background-color: transparent;
+    font-size: 11px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.more-button:hover {
+    text-decoration: underline;
+}
+
+.day-popup-background {
+    position: fixed;
+    z-index: 1050;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background-color: rgba(0, 0, 0, 0.35);
+}
+
+.day-popup {
+    width: 100%;
+    max-width: 620px;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 22px;
+    border: 1px solid #d7dbe0;
+    border-radius: 8px;
+    background-color: white;
+}
+
+.day-popup h2 {
+    margin: 0;
+    font-size: 19px;
+}
+
+.day-order-list {
+    display: grid;
+    gap: 9px;
+    margin-top: 18px;
+}
+
+.day-order {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    width: 100%;
+    padding: 11px;
+    border: 1px solid;
+    border-radius: 6px;
+    color: #30343b;
+    font-size: 13px;
+    text-align: left;
+}
+
+.day-popup-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 18px;
+}
+
+@media (max-width: 700px) {
+    .page-header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 14px;
+    }
+}

@@ -1,80 +1,258 @@
 ﻿@page "/disposition/monatsplan"
 @rendermode InteractiveServer
 
+@using System.Globalization
 @using HRomance.Models
 @using HRomance.Services
+@using HRomance.Components.Pages.Auftraege
 
 @inject AuftragService AuftragService
 
-<PageTitle>Monatsplan</PageTitle>
+<PageTitle>Disposition – Monat</PageTitle>
 
-<h3>Monatsplan</h3>
+<div class="month-page">
+    <div class="page-header">
+        <div>
+            <h1>Disposition</h1>
+            <p>Monatsübersicht der Aufträge</p>
+        </div>
 
-@if (!auftraege.Any())
+        <div class="view-switch">
+            <a href="/disposition">Woche</a>
+            <a href="/disposition/monatsplan" class="active-view">Monat</a>
+        </div>
+    </div>
+
+    <div class="calendar-card">
+        <div class="month-navigation">
+            <button type="button" @onclick="VorherigerMonat">Zurück</button>
+            <h2>@Monatsname()</h2>
+            <button type="button" @onclick="NaechsterMonat">Weiter</button>
+        </div>
+
+        <div class="today-area">
+            <button type="button" @onclick="AktuellerMonat">Heute</button>
+        </div>
+
+        <div class="calendar-container">
+            <div class="calendar-grid">
+                @foreach (var wochentag in wochentage)
+                {
+                    <div class="weekday">@wochentag</div>
+                }
+
+                @for (var feld = 0; feld < AnzahlKalenderfelder(); feld++)
+                {
+                    var tag = feld - ErsterWochentag() + 1;
+
+                    if (tag < 1 || tag > DateTime.DaysInMonth(angezeigterMonat.Year, angezeigterMonat.Month))
+                    {
+                        <div class="day empty-day"></div>
+                    }
+                    else
+                    {
+                        var datum = new DateTime(angezeigterMonat.Year, angezeigterMonat.Month, tag);
+                        var auftraegeAmTag = AuftraegeAmTag(datum);
+                        var anzahlSichtbar = Math.Min(3, auftraegeAmTag.Count);
+
+                        <div class="day @(datum.Date == DateTime.Today ? "today" : "")">
+                            <div class="day-number">@tag</div>
+
+                            @for (var index = 0; index < anzahlSichtbar; index++)
+                            {
+                                var auftrag = auftraegeAmTag[index];
+                                <button type="button"
+                                        class="order-entry @AuftragsKlasse(auftrag, datum) @(IstBesetzt(auftrag) ? "occupied" : "open")"
+                                        @onclick="() => AuftragOeffnen(auftrag)">
+                                    @if (IstAuftragsSegmentStart(auftrag, datum))
+                                    {
+                                        <strong>@auftrag.Titel</strong>
+                                        <span>@(auftrag.Kunde?.Firmenname ?? "Kein Kunde")</span>
+                                    }
+                                </button>
+                            }
+
+                            @if (auftraegeAmTag.Count > 3)
+                            {
+                                <button type="button" class="more-button" @onclick="() => TagesPopupOeffnen(datum)">
+                                    + @(auftraegeAmTag.Count - 3) weitere
+                                </button>
+                            }
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (tagesPopupDatum != null && ausgewaehlterAuftrag == null)
 {
-    <div class="alert alert-info">
-        Für diesen Monat sind keine Aufträge vorhanden.
+    <div class="day-popup-background" @onclick="TagesPopupSchliessen">
+        <div class="day-popup" @onclick:stopPropagation="true">
+            <h2>Aufträge am @tagesPopupDatum.Value.ToString("dd.MM.yyyy")</h2>
+
+            <div class="day-order-list">
+                @foreach (var auftrag in AuftraegeAmTag(tagesPopupDatum.Value))
+                {
+                    <button type="button"
+                            class="day-order @(IstBesetzt(auftrag) ? "occupied" : "open")"
+                            @onclick="() => AuftragOeffnen(auftrag)">
+                        <strong>@auftrag.Titel</strong>
+                        <span>@(auftrag.Kunde?.Firmenname ?? "Kein Kunde")</span>
+                        <span>@(IstBesetzt(auftrag) ? "Besetzt" : "Offen")</span>
+                    </button>
+                }
+            </div>
+
+            <div class="day-popup-actions">
+                <button type="button" @onclick="TagesPopupSchliessen">Schließen</button>
+            </div>
+        </div>
     </div>
 }
-else
+
+@if (ausgewaehlterAuftrag != null)
 {
-    <table class="table table-striped table-hover">
-
-        <thead>
-            <tr>
-                <th>Titel</th>
-                <th>Kunde</th>
-                <th>Einsatzort</th>
-                <th>Qualifikation</th>
-                <th>Startdatum</th>
-                <th>Enddatum</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-
-        <tbody>
-
-            @foreach (var auftrag in auftraege)
-            {
-                <tr>
-                    <td>@auftrag.Titel</td>
-                    <td>@auftrag.Kunde?.Firmenname</td>
-                    <td>@auftrag.Einsatzort</td>
-                    <td>@auftrag.BenoetigteQualifikation</td>
-                    <td>@auftrag.Startdatum.ToShortDateString()</td>
-                    <td>@auftrag.Enddatum.ToShortDateString()</td>
-
-                    <td>
-                        @if (auftrag.Besetzt)
-                        {
-                            <span class="badge bg-success">Besetzt</span>
-                        }
-                        else
-                        {
-                            <span class="badge bg-warning text-dark">Offen</span>
-                        }
-                    </td>
-                </tr>
-            }
-
-        </tbody>
-
-    </table>
+    <AuftragPopup Auftrag="@ausgewaehlterAuftrag"
+                   Aktualisiert="DatenLaden"
+                   Geschlossen="PopupSchliessen" />
 }
 
 @code {
+    private readonly string[] wochentage =
+    {
+        "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"
+    };
 
     private List<Auftrag> auftraege = new();
+    private DateTime angezeigterMonat = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private Auftrag? ausgewaehlterAuftrag;
+    private DateTime? tagesPopupDatum;
 
     protected override async Task OnInitializedAsync()
     {
-        var alleAuftraege = await AuftragService.GetAllAsync();
-
-        auftraege = alleAuftraege
-            .Where(a => a.Startdatum.Month == DateTime.Today.Month
-                     && a.Startdatum.Year == DateTime.Today.Year)
-            .OrderBy(a => a.Startdatum)
-            .ToList();
+        await DatenLaden();
     }
 
+    private async Task DatenLaden()
+    {
+        auftraege = await AuftragService.GetAllAsync();
+    }
+
+    private void VorherigerMonat()
+    {
+        angezeigterMonat = angezeigterMonat.AddMonths(-1);
+        TagesPopupSchliessen();
+    }
+
+    private void NaechsterMonat()
+    {
+        angezeigterMonat = angezeigterMonat.AddMonths(1);
+        TagesPopupSchliessen();
+    }
+
+    private void AktuellerMonat()
+    {
+        angezeigterMonat = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+        TagesPopupSchliessen();
+    }
+
+    private string Monatsname()
+    {
+        return angezeigterMonat.ToString("MMMM yyyy", CultureInfo.GetCultureInfo("de-DE"));
+    }
+
+    private int ErsterWochentag()
+    {
+        var wochentag = (int)angezeigterMonat.DayOfWeek;
+
+        if (wochentag == 0)
+        {
+            return 6;
+        }
+
+        return wochentag - 1;
+    }
+
+    private int AnzahlKalenderfelder()
+    {
+        var tage = DateTime.DaysInMonth(angezeigterMonat.Year, angezeigterMonat.Month);
+        var wochen = (ErsterWochentag() + tage + 6) / 7;
+        return wochen * 7;
+    }
+
+    private List<Auftrag> AuftraegeAmTag(DateTime datum)
+    {
+        var passendeAuftraege = new List<Auftrag>();
+
+        foreach (var auftrag in auftraege)
+        {
+            if (datum.Date >= auftrag.Startdatum.Date && datum.Date <= auftrag.Enddatum.Date)
+            {
+                passendeAuftraege.Add(auftrag);
+            }
+        }
+
+        return passendeAuftraege;
+    }
+
+    private bool IstAuftragsSegmentStart(Auftrag auftrag, DateTime datum)
+    {
+        return datum.Date == auftrag.Startdatum.Date
+            || datum.DayOfWeek == DayOfWeek.Monday
+            || datum.Day == 1;
+    }
+
+    private string AuftragsKlasse(Auftrag auftrag, DateTime datum)
+    {
+        var letzterTag = DateTime.DaysInMonth(datum.Year, datum.Month);
+        var beginnt = IstAuftragsSegmentStart(auftrag, datum);
+        var endet = datum.Date == auftrag.Enddatum.Date
+            || datum.DayOfWeek == DayOfWeek.Sunday
+            || datum.Day == letzterTag;
+
+        if (beginnt && endet)
+        {
+            return "single";
+        }
+
+        if (beginnt)
+        {
+            return "start";
+        }
+
+        if (endet)
+        {
+            return "end";
+        }
+
+        return "middle";
+    }
+
+    private bool IstBesetzt(Auftrag auftrag)
+    {
+        return auftrag.Mitarbeiter.Count > 0;
+    }
+
+    private void AuftragOeffnen(Auftrag auftrag)
+    {
+        ausgewaehlterAuftrag = auftrag;
+    }
+
+    private void PopupSchliessen()
+    {
+        ausgewaehlterAuftrag = null;
+    }
+
+    private void TagesPopupOeffnen(DateTime datum)
+    {
+        tagesPopupDatum = datum;
+    }
+
+    private void TagesPopupSchliessen()
+    {
+        tagesPopupDatum = null;
+        ausgewaehlterAuftrag = null;
+    }
 }

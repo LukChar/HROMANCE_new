@@ -1,0 +1,251 @@
+@page "/antraege"
+@rendermode InteractiveServer
+
+@using HRomance.Models
+@using HRomance.Services
+
+@inject AbwesenheitService AbwesenheitService
+
+<PageTitle>Anträge</PageTitle>
+
+<div class="applications-page">
+    <div class="page-header">
+        <h1>Anträge</h1>
+        <p>Urlaubs- und Abwesenheitsanträge</p>
+    </div>
+
+    <div class="overview">
+        <div>
+            <span>Offen</span>
+            <strong>@anzahlOffen</strong>
+        </div>
+        <div>
+            <span>Genehmigt</span>
+            <strong>@anzahlGenehmigt</strong>
+        </div>
+        <div>
+            <span>Abgelehnt</span>
+            <strong>@anzahlAbgelehnt</strong>
+        </div>
+    </div>
+
+    <div class="filters">
+        <input type="text"
+               placeholder="Anträge suchen..."
+               value="@suchtext"
+               @oninput="SucheGeaendert" />
+
+        <select value="@artfilter" @onchange="ArtfilterGeaendert">
+            <option value="Alle">Alle Arten</option>
+            <option value="Urlaub">Urlaub</option>
+            <option value="Zeitausgleich">Zeitausgleich</option>
+            <option value="Krankenstand">Krankenstand</option>
+            <option value="Sonstige Abwesenheit">Sonstige Abwesenheit</option>
+        </select>
+
+        <select value="@statusfilter" @onchange="StatusfilterGeaendert">
+            <option value="Alle">Alle Status</option>
+            <option value="Offen">Offen</option>
+            <option value="Genehmigt">Genehmigt</option>
+            <option value="Abgelehnt">Abgelehnt</option>
+        </select>
+
+        <select value="@sortierung" @onchange="SortierungGeaendert">
+            <option value="Neueste">Neueste zuerst</option>
+            <option value="Älteste">Älteste zuerst</option>
+        </select>
+    </div>
+
+    <div class="applications-list">
+        @if (antraege.Count == 0)
+        {
+            <p class="empty-message">Es sind noch keine Anträge vorhanden.</p>
+        }
+        else if (GefilterteAntraege().Count == 0)
+        {
+            <p class="empty-message">Keine Anträge gefunden.</p>
+        }
+        else
+        {
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Mitarbeiter</th>
+                            <th>Typ</th>
+                            <th>Von</th>
+                            <th>Bis</th>
+                            <th>Grund</th>
+                            <th>Status</th>
+                            <th>Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var antrag in GefilterteAntraege())
+                        {
+                            <tr>
+                                <td>@MitarbeiterName(antrag.Mitarbeiter)</td>
+                                <td>@antrag.Typ</td>
+                                <td>@antrag.Von.ToString("dd.MM.yyyy")</td>
+                                <td>@antrag.Bis.ToString("dd.MM.yyyy")</td>
+                                <td>@(string.IsNullOrWhiteSpace(antrag.Grund) ? "-" : antrag.Grund)</td>
+                                <td>@antrag.Status</td>
+                                <td>
+                                    @if (antrag.Status == "Offen")
+                                    {
+                                        <div class="action-buttons">
+                                            <button type="button" class="approve-button"
+                                                    @onclick='() => BestaetigungOeffnen(antrag, "Genehmigt")'>
+                                                Genehmigen
+                                            </button>
+                                            <button type="button" class="reject-button"
+                                                    @onclick='() => BestaetigungOeffnen(antrag, "Abgelehnt")'>
+                                                Ablehnen
+                                            </button>
+                                        </div>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@if (bestaetigungsAntrag != null)
+{
+    <div class="popup-background" @onclick="BestaetigungSchliessen">
+        <div class="status-popup" @onclick:stopPropagation="true">
+            <h2>Antrag @(neuerStatus == "Genehmigt" ? "genehmigen" : "ablehnen")?</h2>
+            <div class="popup-details">
+                <strong>@MitarbeiterName(bestaetigungsAntrag.Mitarbeiter)</strong>
+                <span>Typ: @bestaetigungsAntrag.Typ</span>
+                <span>Von: @bestaetigungsAntrag.Von.ToString("dd.MM.yyyy")</span>
+                <span>Bis: @bestaetigungsAntrag.Bis.ToString("dd.MM.yyyy")</span>
+                @if (!string.IsNullOrWhiteSpace(bestaetigungsAntrag.Grund))
+                {
+                    <span>Grund: @bestaetigungsAntrag.Grund</span>
+                }
+            </div>
+            <div class="popup-actions">
+                <button type="button" class="cancel-button" @onclick="BestaetigungSchliessen">Abbrechen</button>
+                @if (neuerStatus == "Genehmigt")
+                {
+                    <button type="button" class="approve-button" @onclick="StatusBestaetigen">Genehmigen</button>
+                }
+                else
+                {
+                    <button type="button" class="reject-button" @onclick="StatusBestaetigen">Ablehnen</button>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Abwesenheit> antraege = new();
+    private int anzahlOffen;
+    private int anzahlGenehmigt;
+    private int anzahlAbgelehnt;
+    private string suchtext = string.Empty;
+    private string artfilter = "Alle";
+    private string statusfilter = "Alle";
+    private string sortierung = "Neueste";
+    private Abwesenheit? bestaetigungsAntrag;
+    private string neuerStatus = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AntraegeLaden();
+    }
+
+    private async Task AntraegeLaden()
+    {
+        antraege = await AbwesenheitService.GetAllAsync();
+        anzahlOffen = 0;
+        anzahlGenehmigt = 0;
+        anzahlAbgelehnt = 0;
+
+        foreach (var antrag in antraege)
+        {
+            if (antrag.Status == "Offen")
+            {
+                anzahlOffen++;
+            }
+            else if (antrag.Status == "Genehmigt")
+            {
+                anzahlGenehmigt++;
+            }
+            else if (antrag.Status == "Abgelehnt")
+            {
+                anzahlAbgelehnt++;
+            }
+        }
+    }
+
+    private List<Abwesenheit> GefilterteAntraege()
+    {
+        return AbwesenheitService.FilternUndSortieren(
+            antraege,
+            suchtext,
+            artfilter,
+            statusfilter,
+            sortierung == "Neueste");
+    }
+
+    private void SucheGeaendert(ChangeEventArgs e)
+    {
+        suchtext = e.Value?.ToString() ?? string.Empty;
+    }
+
+    private void ArtfilterGeaendert(ChangeEventArgs e)
+    {
+        artfilter = e.Value?.ToString() ?? "Alle";
+    }
+
+    private void StatusfilterGeaendert(ChangeEventArgs e)
+    {
+        statusfilter = e.Value?.ToString() ?? "Alle";
+    }
+
+    private void SortierungGeaendert(ChangeEventArgs e)
+    {
+        sortierung = e.Value?.ToString() ?? "Neueste";
+    }
+
+    private void BestaetigungOeffnen(Abwesenheit antrag, string status)
+    {
+        bestaetigungsAntrag = antrag;
+        neuerStatus = status;
+    }
+
+    private void BestaetigungSchliessen()
+    {
+        bestaetigungsAntrag = null;
+        neuerStatus = string.Empty;
+    }
+
+    private async Task StatusBestaetigen()
+    {
+        if (bestaetigungsAntrag == null)
+        {
+            return;
+        }
+
+        await AbwesenheitService.StatusAendernAsync(bestaetigungsAntrag.Id, neuerStatus);
+        BestaetigungSchliessen();
+        await AntraegeLaden();
+    }
+
+    private string MitarbeiterName(Mitarbeiter? mitarbeiter)
+    {
+        if (mitarbeiter == null)
+        {
+            return "Unbekannter Mitarbeiter";
+        }
+
+        return mitarbeiter.Vorname + " " + mitarbeiter.Nachname;
+    }
+}

@@ -21,5 +21,12 @@ public class Mitarbeiter
 
     public string Qualifikation { get; set; } = string.Empty;
 
+    public List<Qualifikation> Qualifikationen { get; set; } = new();
+
+    public List<Auftrag> Auftraege { get; set; } = new();
+
     public bool Verfuegbar { get; set; } = true;
+
+    [Range(0, 24, ErrorMessage = "Die Sollstunden müssen zwischen 0 und 24 liegen.")]
+    public double SollStundenProTag { get; set; } = 8;
 }

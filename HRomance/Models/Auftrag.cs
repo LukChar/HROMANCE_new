@@ -15,6 +15,10 @@ public class Auftrag
 
     public string BenoetigteQualifikation { get; set; } = string.Empty;
 
+    public List<Qualifikation> Qualifikationen { get; set; } = new();
+
+    public List<Mitarbeiter> Mitarbeiter { get; set; } = new();
+
     public DateTime Startdatum { get; set; }
 
     public DateTime Enddatum { get; set; }
