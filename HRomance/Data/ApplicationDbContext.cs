@@ -20,5 +20,16 @@ namespace HRomance.Data
         public DbSet<Arbeitszeit> Arbeitszeiten { get; set; }
 
         public DbSet<Abwesenheit> Abwesenheiten { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder builder)
+        {
+            base.OnModelCreating(builder);
+
+            builder.Entity<ApplicationUser>()
+                .HasOne(user => user.Mitarbeiter)
+                .WithOne()
+                .HasForeignKey<ApplicationUser>(user => user.MitarbeiterId)
+                .OnDelete(DeleteBehavior.SetNull);
+        }
     }
 }

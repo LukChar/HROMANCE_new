@@ -4,9 +4,10 @@ using Microsoft.AspNetCore.Identity;
 
 namespace HRomance.Components.Account
 {
-    internal sealed class IdentityRedirectManager(NavigationManager navigationManager)
+    public sealed class IdentityRedirectManager(NavigationManager navigationManager)
     {
         public const string StatusCookieName = "Identity.StatusMessage";
+        public const string StandardLoginZiel = "dashboard";
 
         private static readonly CookieBuilder StatusCookieBuilder = new()
         {

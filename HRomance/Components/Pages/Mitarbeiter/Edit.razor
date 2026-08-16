@@ -1,4 +1,5 @@
 ﻿@page "/mitarbeiter/edit/{Id:int}"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin,Disponent")]
 @rendermode InteractiveServer
 
 @using HRomance.Models
@@ -68,9 +69,9 @@
                     </div>
 
                     <div class="form-group">
-                        <label>Sollstunden pro Tag</label>
-                        <InputNumber class="form-input" @bind-Value="mitarbeiter.SollStundenProTag" step="0.5" />
-                        <ValidationMessage For="@(() => mitarbeiter.SollStundenProTag)" />
+                        <label>Wochenarbeitszeit</label>
+                        <InputNumber class="form-input" @bind-Value="mitarbeiter.Wochenarbeitszeit" min="0" max="80" step="0.5" />
+                        <ValidationMessage For="@(() => mitarbeiter.Wochenarbeitszeit)" />
                     </div>
 
                 </div>
@@ -152,18 +153,7 @@
 
         if (geladenerMitarbeiter != null)
         {
-            mitarbeiter = new Mitarbeiter
-            {
-                Id = geladenerMitarbeiter.Id,
-                Personalnummer = geladenerMitarbeiter.Personalnummer,
-                Vorname = geladenerMitarbeiter.Vorname,
-                Nachname = geladenerMitarbeiter.Nachname,
-                Email = geladenerMitarbeiter.Email,
-                Telefon = geladenerMitarbeiter.Telefon,
-                Qualifikation = geladenerMitarbeiter.Qualifikation,
-                Verfuegbar = geladenerMitarbeiter.Verfuegbar,
-                SollStundenProTag = geladenerMitarbeiter.SollStundenProTag
-            };
+            mitarbeiter = MitarbeiterService.ErstelleArbeitskopie(geladenerMitarbeiter);
 
             foreach (var qualifikation in geladenerMitarbeiter.Qualifikationen)
             {

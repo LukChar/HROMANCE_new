@@ -41,6 +41,25 @@ public class AbwesenheitService
         await _context.SaveChangesAsync();
     }
 
+    public async Task<bool> PersoenlichenAntragHinzufuegenAsync(
+        Abwesenheit antrag,
+        int mitarbeiterId)
+    {
+        if (antrag.Id != 0
+            || mitarbeiterId <= 0
+            || antrag.Bis.Date < antrag.Von.Date)
+        {
+            return false;
+        }
+
+        antrag.MitarbeiterId = mitarbeiterId;
+        antrag.Status = "Offen";
+
+        _context.Abwesenheiten.Add(antrag);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
     public async Task UpdateAsync(Abwesenheit abwesenheit)
     {
         var vorhandeneAbwesenheit = await _context.Abwesenheiten.FindAsync(abwesenheit.Id);
@@ -126,6 +145,133 @@ public class AbwesenheitService
     public bool PasstZuMitarbeiter(Abwesenheit abwesenheit, int mitarbeiterId)
     {
         return mitarbeiterId == 0 || abwesenheit.MitarbeiterId == mitarbeiterId;
+    }
+
+    public bool IstOffenerAntrag(Abwesenheit abwesenheit)
+    {
+        return abwesenheit.Status == "Offen";
+    }
+
+    public bool IstAbwesendAmTag(Abwesenheit abwesenheit, DateTime datum)
+    {
+        return abwesenheit.Status != "Abgelehnt"
+            && abwesenheit.Von.Date <= datum.Date
+            && abwesenheit.Bis.Date >= datum.Date;
+    }
+
+    public Dictionary<int, int> KalenderSpurenBestimmen(List<Abwesenheit> abwesenheiten)
+    {
+        var sortierteAbwesenheiten = abwesenheiten
+            .OrderBy(abwesenheit => abwesenheit.Von)
+            .ThenBy(abwesenheit => abwesenheit.Bis)
+            .ThenBy(abwesenheit => abwesenheit.Id)
+            .ToList();
+        var spuren = new List<List<Abwesenheit>>();
+        var ergebnis = new Dictionary<int, int>();
+
+        foreach (var abwesenheit in sortierteAbwesenheiten)
+        {
+            var spur = 0;
+
+            while (SpurIstBelegt(spuren, spur, abwesenheit))
+            {
+                spur++;
+            }
+
+            if (spur == spuren.Count)
+            {
+                spuren.Add(new List<Abwesenheit>());
+            }
+
+            spuren[spur].Add(abwesenheit);
+            ergebnis[abwesenheit.Id] = spur;
+        }
+
+        return ergebnis;
+    }
+
+    public string KalenderSegmentKlasse(Abwesenheit abwesenheit, DateTime datum)
+    {
+        var beginnt = IstKalenderSegmentStart(abwesenheit, datum);
+        var endet = IstKalenderSegmentEnde(abwesenheit, datum);
+
+        if (beginnt && endet)
+        {
+            return "absence-single";
+        }
+
+        if (beginnt)
+        {
+            return "absence-start";
+        }
+
+        if (endet)
+        {
+            return "absence-end";
+        }
+
+        return "absence-middle";
+    }
+
+    public bool IstKalenderSegmentStart(Abwesenheit abwesenheit, DateTime datum)
+    {
+        return datum.Date == abwesenheit.Von.Date
+            || datum.DayOfWeek == DayOfWeek.Monday
+            || datum.Day == 1;
+    }
+
+    public int SichtbareKalenderSegmenttage(Abwesenheit abwesenheit, DateTime datum)
+    {
+        var letzterTag = abwesenheit.Bis.Date;
+        var tageBisSonntag = (7 - (int)datum.DayOfWeek) % 7;
+        var sonntag = datum.Date.AddDays(tageBisSonntag);
+        var monatsende = new DateTime(datum.Year, datum.Month,
+            DateTime.DaysInMonth(datum.Year, datum.Month));
+
+        if (sonntag < letzterTag)
+        {
+            letzterTag = sonntag;
+        }
+
+        if (monatsende < letzterTag)
+        {
+            letzterTag = monatsende;
+        }
+
+        return (letzterTag - datum.Date).Days + 1;
+    }
+
+    private bool IstKalenderSegmentEnde(Abwesenheit abwesenheit, DateTime datum)
+    {
+        var letzterTagImMonat = DateTime.DaysInMonth(datum.Year, datum.Month);
+
+        return datum.Date == abwesenheit.Bis.Date
+            || datum.DayOfWeek == DayOfWeek.Sunday
+            || datum.Day == letzterTagImMonat;
+    }
+
+    private bool SpurIstBelegt(
+        List<List<Abwesenheit>> spuren,
+        int spur,
+        Abwesenheit abwesenheit)
+    {
+        if (spur >= spuren.Count)
+        {
+            return false;
+        }
+
+        foreach (var vorhandeneAbwesenheit in spuren[spur])
+        {
+            var ueberlappt = abwesenheit.Von.Date <= vorhandeneAbwesenheit.Bis.Date
+                && vorhandeneAbwesenheit.Von.Date <= abwesenheit.Bis.Date;
+
+            if (ueberlappt)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public async Task DeleteAsync(int id)

@@ -1,17 +1,27 @@
 @page "/antraege"
 @rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
 
+@using HRomance.Data
 @using HRomance.Models
 @using HRomance.Services
+@using Microsoft.AspNetCore.Identity
 
 @inject AbwesenheitService AbwesenheitService
+@inject UserManager<ApplicationUser> UserManager
 
 <PageTitle>Anträge</PageTitle>
 
 <div class="applications-page">
     <div class="page-header">
-        <h1>Anträge</h1>
-        <p>Urlaubs- und Abwesenheitsanträge</p>
+        <div>
+            <h1>Anträge</h1>
+            <p>Urlaubs- und Abwesenheitsanträge</p>
+        </div>
+
+        <button type="button" class="btn btn-primary" @onclick="NeuerAntragOeffnen">
+            Neuer Antrag
+        </button>
     </div>
 
     <div class="overview">
@@ -91,19 +101,21 @@
                                 <td>@(string.IsNullOrWhiteSpace(antrag.Grund) ? "-" : antrag.Grund)</td>
                                 <td>@antrag.Status</td>
                                 <td>
-                                    @if (antrag.Status == "Offen")
-                                    {
-                                        <div class="action-buttons">
-                                            <button type="button" class="approve-button"
-                                                    @onclick='() => BestaetigungOeffnen(antrag, "Genehmigt")'>
-                                                Genehmigen
-                                            </button>
-                                            <button type="button" class="reject-button"
-                                                    @onclick='() => BestaetigungOeffnen(antrag, "Abgelehnt")'>
-                                                Ablehnen
-                                            </button>
-                                        </div>
-                                    }
+                                    <AuthorizeView Roles="Admin,Disponent">
+                                        @if (antrag.Status == "Offen")
+                                        {
+                                            <div class="action-buttons">
+                                                <button type="button" class="approve-button"
+                                                        @onclick='() => BestaetigungOeffnen(antrag, "Genehmigt")'>
+                                                    Genehmigen
+                                                </button>
+                                                <button type="button" class="reject-button"
+                                                        @onclick='() => BestaetigungOeffnen(antrag, "Abgelehnt")'>
+                                                    Ablehnen
+                                                </button>
+                                            </div>
+                                        }
+                                    </AuthorizeView>
                                 </td>
                             </tr>
                         }
@@ -113,6 +125,58 @@
         }
     </div>
 </div>
+
+@if (neuerAntragSichtbar)
+{
+    <div class="popup-background" @onclick="NeuerAntragSchliessen">
+        <div class="status-popup" @onclick:stopPropagation="true">
+            <h2>Neuer Antrag</h2>
+
+            <EditForm Model="@neuerAntrag" OnValidSubmit="NeuenAntragSpeichern" FormName="NeuerAntrag">
+                <DataAnnotationsValidator />
+
+                <div class="request-form">
+                    <div>
+                        <label>Art</label>
+                        <InputSelect @bind-Value="neuerAntrag.Typ">
+                            <option value="Urlaub">Urlaub</option>
+                            <option value="Zeitausgleich">Zeitausgleich</option>
+                            <option value="Krankenstand">Krankenstand</option>
+                            <option value="Sonstige Abwesenheit">Sonstige Abwesenheit</option>
+                        </InputSelect>
+                    </div>
+
+                    <div>
+                        <label>Von</label>
+                        <InputDate @bind-Value="neuerAntrag.Von" />
+                    </div>
+
+                    <div>
+                        <label>Bis</label>
+                        <InputDate @bind-Value="neuerAntrag.Bis" />
+                    </div>
+
+                    <div>
+                        <label>Grund / Notiz</label>
+                        <InputTextArea @bind-Value="neuerAntrag.Grund" />
+                    </div>
+                </div>
+
+                @if (antragFehler != string.Empty)
+                {
+                    <p class="form-error">@antragFehler</p>
+                }
+
+                <div class="popup-actions">
+                    <button type="button" class="cancel-button" @onclick="NeuerAntragSchliessen">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary" disabled="@speichertAntrag">
+                        @(speichertAntrag ? "Wird gespeichert..." : "Antrag stellen")
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
 
 @if (bestaetigungsAntrag != null)
 {
@@ -155,15 +219,42 @@
     private string sortierung = "Neueste";
     private Abwesenheit? bestaetigungsAntrag;
     private string neuerStatus = string.Empty;
+    private int mitarbeiterId;
+    private bool istManager;
+    private bool neuerAntragSichtbar;
+    private Abwesenheit neuerAntrag = new();
+    private string antragFehler = string.Empty;
+    private bool speichertAntrag;
 
     protected override async Task OnInitializedAsync()
     {
+        var authenticationState = await AuthenticationStateTask;
+        var user = await UserManager.GetUserAsync(authenticationState.User);
+        mitarbeiterId = user?.MitarbeiterId ?? 0;
+        istManager = authenticationState.User.IsInRole("Admin")
+            || authenticationState.User.IsInRole("Disponent");
+
         await AntraegeLaden();
     }
 
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
+
     private async Task AntraegeLaden()
     {
-        antraege = await AbwesenheitService.GetAllAsync();
+        if (istManager)
+        {
+            antraege = await AbwesenheitService.GetAllAsync();
+        }
+        else if (mitarbeiterId != 0)
+        {
+            antraege = await AbwesenheitService.GetByMitarbeiterAsync(mitarbeiterId);
+        }
+        else
+        {
+            antraege = new List<Abwesenheit>();
+        }
+
         anzahlOffen = 0;
         anzahlGenehmigt = 0;
         anzahlAbgelehnt = 0;
@@ -215,8 +306,87 @@
         sortierung = e.Value?.ToString() ?? "Neueste";
     }
 
+    private void NeuerAntragOeffnen()
+    {
+        neuerAntrag = new Abwesenheit
+        {
+            MitarbeiterId = mitarbeiterId,
+            Typ = "Urlaub",
+            Von = DateTime.Today,
+            Bis = DateTime.Today,
+            Status = "Offen"
+        };
+
+        antragFehler = string.Empty;
+        neuerAntragSichtbar = true;
+    }
+
+    private void NeuerAntragSchliessen()
+    {
+        if (speichertAntrag)
+        {
+            return;
+        }
+
+        neuerAntragSichtbar = false;
+        neuerAntrag = new Abwesenheit();
+        antragFehler = string.Empty;
+    }
+
+    private async Task NeuenAntragSpeichern()
+    {
+        if (speichertAntrag)
+        {
+            return;
+        }
+
+        if (mitarbeiterId == 0)
+        {
+            antragFehler = "Dem Benutzer ist kein Mitarbeiter zugeordnet.";
+            return;
+        }
+
+        if (neuerAntrag.Bis.Date < neuerAntrag.Von.Date)
+        {
+            antragFehler = "Das Bis-Datum darf nicht vor dem Von-Datum liegen.";
+            return;
+        }
+
+        speichertAntrag = true;
+
+        try
+        {
+            var gespeichert = await AbwesenheitService.PersoenlichenAntragHinzufuegenAsync(
+                neuerAntrag,
+                mitarbeiterId);
+
+            if (!gespeichert)
+            {
+                antragFehler = "Der Antrag konnte nicht gespeichert werden.";
+                return;
+            }
+
+            speichertAntrag = false;
+            NeuerAntragSchliessen();
+            await AntraegeLaden();
+        }
+        catch
+        {
+            antragFehler = "Der Antrag konnte nicht gespeichert werden.";
+        }
+        finally
+        {
+            speichertAntrag = false;
+        }
+    }
+
     private void BestaetigungOeffnen(Abwesenheit antrag, string status)
     {
+        if (!istManager)
+        {
+            return;
+        }
+
         bestaetigungsAntrag = antrag;
         neuerStatus = status;
     }
@@ -229,7 +399,7 @@
 
     private async Task StatusBestaetigen()
     {
-        if (bestaetigungsAntrag == null)
+        if (!istManager || bestaetigungsAntrag == null)
         {
             return;
         }

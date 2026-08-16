@@ -1,92 +1,287 @@
-﻿@page "/matching"
+@page "/matching"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin,Disponent")]
 @rendermode InteractiveServer
 
 @using HRomance.Models
 @using HRomance.Services
 
-@inject AuftragService AuftragService
 @inject MatchingService MatchingService
 
 <PageTitle>Matching</PageTitle>
 
-<h3>Matching</h3>
+<div class="matching-page">
+    <div class="page-header">
+        <div>
+            <h1>Matching</h1>
+            <p>Planungsvorschläge für die nächsten 14 Tage</p>
+        </div>
 
-<div class="mb-3">
-    <label class="form-label">Auftrag auswählen</label>
+        <button type="button" class="primary-button" disabled="@wirdBerechnet" @onclick="VorschlaegeErstellen">
+            @(wirdBerechnet ? "Wird berechnet..." : "Vorschläge erstellen")
+        </button>
+    </div>
 
-    <InputSelect class="form-select" @bind-Value="ausgewaehlterAuftragId">
+    @if (meldung != string.Empty)
+    {
+        <p class="message">@meldung</p>
+    }
 
-        <option value="0">Bitte auswählen</option>
+    @if (AktuellerVorschlag() is MatchingVorschlag aktuellerVorschlag)
+    {
+        <div class="suggestion-tabs">
+            @foreach (var vorschlag in vorschlaege)
+            {
+                <button type="button"
+                        class="@(vorschlag.Nummer == ausgewaehlteVorschlagsnummer ? "primary-button" : "secondary-button")"
+                        @onclick="() => VorschlagWechseln(vorschlag.Nummer)">
+                    @vorschlag.Name
+                </button>
+            }
+        </div>
 
-        @foreach (var auftrag in auftraege)
-        {
-            <option value="@auftrag.Id">
-                @auftrag.Titel
-            </option>
-        }
+        <section class="selected-plan">
+            <div class="suggestion-header">
+                <div>
+                    <h2>@aktuellerVorschlag.Name</h2>
+                    <p>@Vorschlagsbeschreibung(aktuellerVorschlag.Nummer)</p>
+                    <span>@Zusammenfassung(aktuellerVorschlag)</span>
+                </div>
 
-    </InputSelect>
+                <button type="button" class="primary-button" @onclick="() => BestaetigungOeffnen(aktuellerVorschlag)">
+                    Diesen Plan übernehmen
+                </button>
+            </div>
+
+            <div class="day-groups">
+                @foreach (var tag in MatchingService.TagesgruppenErstellen(aktuellerVorschlag))
+                {
+                    <section class="day-group">
+                        <h3>@TagAnzeigen(tag.Datum)</h3>
+
+                        <div class="day-assignments">
+                            @foreach (var zuweisung in tag.Zuweisungen)
+                            {
+                                <article class="assignment">
+                                    <div class="order-details">
+                                        <strong>@zuweisung.Auftrag.Titel</strong>
+                                        <span>@(zuweisung.Auftrag.Kunde?.Firmenname ?? "Kein Kunde")</span>
+                                    </div>
+
+                                    @if (zuweisung.Mitarbeiter == null)
+                                    {
+                                        <div class="no-match">Kein passender Mitarbeiter verfügbar</div>
+                                    }
+                                    else
+                                    {
+                                        <div class="employee-details">
+                                            <strong>@MitarbeiterName(zuweisung.Mitarbeiter)</strong>
+                                            @if (zuweisung.BenoetigteQualifikationen == 0)
+                                            {
+                                                <span>Keine Qualifikation erforderlich</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@zuweisung.PassendeQualifikationen/@zuweisung.BenoetigteQualifikationen Qualifikationen passend</span>
+                                            }
+                                            <span>@EinsatzText(zuweisung.BestehendeEinsaetze)</span>
+                                        </div>
+                                    }
+                                </article>
+                            }
+                        </div>
+                    </section>
+                }
+            </div>
+        </section>
+    }
 </div>
 
-<button class="btn btn-primary mb-3"
-        @onclick="MatchingStarten">
-    Matching starten
-</button>
-
-@if (passendeMitarbeiter.Any())
+@if (ausgewaehlterVorschlag != null)
 {
-    <table class="table table-striped table-hover">
+    <div class="popup-background" @onclick="BestaetigungSchliessen">
+        <div class="confirmation-popup" @onclick:stopPropagation="true">
+            <h2>Planungsvorschlag übernehmen?</h2>
+            <p>@ausgewaehlterVorschlag.Zuweisungen.Count Aufträge</p>
+            <p>@AnzahlZuweisungen(ausgewaehlterVorschlag) Mitarbeiterzuweisungen</p>
 
-        <thead>
-            <tr>
-                <th>Personalnummer</th>
-                <th>Vorname</th>
-                <th>Nachname</th>
-                <th>Qualifikation</th>
-                <th>Punkte</th>
-                <th>Bewertung</th>
-            </tr>
-        </thead>
-
-        <tbody>
-
-            @foreach (var ergebnis in passendeMitarbeiter)
+            @if (popupFehler != string.Empty)
             {
-                <tr>
-                    <td>@ergebnis.Mitarbeiter.Personalnummer</td>
-                    <td>@ergebnis.Mitarbeiter.Vorname</td>
-                    <td>@ergebnis.Mitarbeiter.Nachname</td>
-                    <td>@ergebnis.Mitarbeiter.Qualifikation</td>
-                    <td>@ergebnis.Punkte</td>
-                    <td>@ergebnis.Bewertung</td>
-                </tr>
+                <p class="popup-error">@popupFehler</p>
             }
 
-        </tbody>
-
-    </table>
+            <div class="popup-actions">
+                <button type="button" class="secondary-button" disabled="@wirdUebernommen" @onclick="BestaetigungSchliessen">
+                    Abbrechen
+                </button>
+                <button type="button" class="primary-button" disabled="@wirdUebernommen" @onclick="VorschlagUebernehmen">
+                    @(wirdUebernommen ? "Wird übernommen..." : "Übernehmen")
+                </button>
+            </div>
+        </div>
+    </div>
 }
 
 @code {
+    private List<MatchingVorschlag> vorschlaege = new();
+    private MatchingVorschlag? ausgewaehlterVorschlag;
+    private string meldung = string.Empty;
+    private string popupFehler = string.Empty;
+    private bool wirdBerechnet;
+    private bool wirdUebernommen;
+    private int ausgewaehlteVorschlagsnummer = 1;
 
-    private List<Auftrag> auftraege = new();
-
-    private List<MatchingErgebnis> passendeMitarbeiter = new();
-
-    private int ausgewaehlterAuftragId;
-
-    protected override async Task OnInitializedAsync()
+    private async Task VorschlaegeErstellen()
     {
-        auftraege = await AuftragService.GetAllAsync();
-    }
-
-    private async Task MatchingStarten()
-    {
-        if (ausgewaehlterAuftragId == 0)
+        if (wirdBerechnet)
+        {
             return;
+        }
 
-        passendeMitarbeiter =
-            await MatchingService.GetPassendeMitarbeiterAsync(ausgewaehlterAuftragId);
+        wirdBerechnet = true;
+        meldung = string.Empty;
+
+        try
+        {
+            vorschlaege = await MatchingService.ErstelleVorschlaegeAsync(DateTime.Today);
+            ausgewaehlteVorschlagsnummer = 1;
+
+            if (vorschlaege.Count == 0)
+            {
+                meldung = "In den nächsten 14 Tagen gibt es keine offenen Aufträge.";
+            }
+        }
+        catch
+        {
+            meldung = "Die Planungsvorschläge konnten nicht erstellt werden.";
+        }
+        finally
+        {
+            wirdBerechnet = false;
+        }
     }
 
+    private void BestaetigungOeffnen(MatchingVorschlag vorschlag)
+    {
+        ausgewaehlterVorschlag = vorschlag;
+        popupFehler = string.Empty;
+    }
+
+    private void BestaetigungSchliessen()
+    {
+        if (wirdUebernommen)
+        {
+            return;
+        }
+
+        ausgewaehlterVorschlag = null;
+        popupFehler = string.Empty;
+    }
+
+    private async Task VorschlagUebernehmen()
+    {
+        if (ausgewaehlterVorschlag == null || wirdUebernommen)
+        {
+            return;
+        }
+
+        wirdUebernommen = true;
+        popupFehler = string.Empty;
+
+        try
+        {
+            var uebernommen = await MatchingService.VorschlagUebernehmenAsync(ausgewaehlterVorschlag);
+
+            if (!uebernommen)
+            {
+                popupFehler = "Der Vorschlag ist nicht mehr aktuell. Bitte Vorschläge neu berechnen.";
+                return;
+            }
+
+            ausgewaehlterVorschlag = null;
+            vorschlaege = await MatchingService.ErstelleVorschlaegeAsync(DateTime.Today);
+            ausgewaehlteVorschlagsnummer = 1;
+            meldung = "Der Planungsvorschlag wurde übernommen.";
+        }
+        catch
+        {
+            popupFehler = "Der Vorschlag konnte nicht übernommen werden.";
+        }
+        finally
+        {
+            wirdUebernommen = false;
+        }
+    }
+
+    private int AnzahlZuweisungen(MatchingVorschlag vorschlag)
+    {
+        var anzahl = 0;
+
+        foreach (var zuweisung in vorschlag.Zuweisungen)
+        {
+            if (zuweisung.Mitarbeiter != null)
+            {
+                anzahl++;
+            }
+        }
+
+        return anzahl;
+    }
+
+    private MatchingVorschlag? AktuellerVorschlag()
+    {
+        return MatchingService.VorschlagAuswaehlen(vorschlaege, ausgewaehlteVorschlagsnummer);
+    }
+
+    private void VorschlagWechseln(int nummer)
+    {
+        ausgewaehlteVorschlagsnummer = nummer;
+    }
+
+    private string Vorschlagsbeschreibung(int nummer)
+    {
+        if (nummer == 1)
+        {
+            return "Priorisiert vollständige Qualifikationsabdeckung.";
+        }
+
+        if (nummer == 2)
+        {
+            return "Verteilt Einsätze möglichst gleichmäßig.";
+        }
+
+        return "Zeigt eine sinnvolle alternative Verteilung.";
+    }
+
+    private string Zusammenfassung(MatchingVorschlag vorschlag)
+    {
+        var zusammenfassung = MatchingService.ZusammenfassungErstellen(vorschlag);
+
+        return zusammenfassung.Auftraege
+            + " Aufträge · "
+            + zusammenfassung.Mitarbeiter
+            + " Mitarbeiter · "
+            + zusammenfassung.Unbesetzt
+            + " unbesetzt";
+    }
+
+    private string TagAnzeigen(DateTime datum)
+    {
+        return datum.ToString("dddd, dd.MM.yyyy",
+            System.Globalization.CultureInfo.GetCultureInfo("de-DE"));
+    }
+
+    private string MitarbeiterName(Mitarbeiter mitarbeiter)
+    {
+        return mitarbeiter.Vorname + " " + mitarbeiter.Nachname;
+    }
+
+    private string EinsatzText(int anzahl)
+    {
+        if (anzahl == 1)
+        {
+            return "1 anderer Einsatz";
+        }
+
+        return anzahl + " andere Einsätze";
+    }
 }

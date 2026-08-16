@@ -1,98 +1,484 @@
-﻿@page "/dashboard"
+@page "/dashboard"
 @rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
 
+@using System.Globalization
+@using HRomance.Components.Pages.Auftraege
+@using HRomance.Data
 @using HRomance.Models
 @using HRomance.Services
+@using Microsoft.AspNetCore.Identity
 
 @inject MitarbeiterService MitarbeiterService
-@inject KundeService KundeService
 @inject AuftragService AuftragService
+@inject ArbeitszeitService ArbeitszeitService
+@inject AbwesenheitService AbwesenheitService
+@inject UserManager<ApplicationUser> UserManager
 
 <PageTitle>Dashboard</PageTitle>
 
-<h3>Dashboard</h3>
-
-<div class="row">
-
-    <div class="col-md-4 mb-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h5>Mitarbeiter</h5>
-                <h2>@anzahlMitarbeiter</h2>
-            </div>
-        </div>
+<div class="dashboard-page">
+    <div class="page-header">
+        <h1>Dashboard</h1>
+        <p>Übersicht über meine Einsätze, Anträge und Arbeitszeiten</p>
     </div>
 
-    <div class="col-md-4 mb-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h5>Verfügbare Mitarbeiter</h5>
-                <h2>@verfuegbareMitarbeiter</h2>
-            </div>
+    <section class="dashboard-section working-time-overview">
+        <div class="section-header">
+            <h2>Meine Arbeitszeit</h2>
         </div>
-    </div>
 
-    <div class="col-md-4 mb-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h5>Kunden</h5>
-                <h2>@anzahlKunden</h2>
-            </div>
+        <div class="working-time-content">
+            @if (ausgewaehlterMitarbeiterId != 0)
+            {
+                <div class="working-time-value">
+                    <strong>@AusgewaehlterMitarbeiterName()</strong>
+                    <span>@AktuellerMonat()</span>
+                    <div class="working-time-row">
+                        <span>Arbeitszeit</span>
+                        <strong>@StundenAnzeigen(MonatsIst()) h</strong>
+                    </div>
+                    @if (MonatsAbwesenheitstage() > 0)
+                    {
+                        <div class="working-time-row">
+                            <span>Abwesenheit</span>
+                            <strong>@AbwesenheitstageAnzeigen()</strong>
+                        </div>
+                    }
+                    <div class="working-time-row">
+                        <span>Soll</span>
+                        <strong>@StundenAnzeigen(MonatsSoll()) h</strong>
+                    </div>
+                    <div class="working-time-row @SaldoKlasse()">
+                        <span>Saldo</span>
+                        <strong>@SaldoAnzeigen() h</strong>
+                    </div>
+                    <button type="button" class="add-working-time-button" @onclick="ArbeitszeitPopupOeffnen">
+                        Stunden eintragen
+                    </button>
+                </div>
+            }
+            else
+            {
+                <p class="empty-message">Dem Benutzer ist kein Mitarbeiter zugeordnet.</p>
+            }
         </div>
-    </div>
+    </section>
 
-    <div class="col-md-4 mb-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h5>Aufträge</h5>
-                <h2>@anzahlAuftraege</h2>
-            </div>
-        </div>
-    </div>
+    <div class="personal-grid">
+            <section class="dashboard-section">
+                <div class="section-header">
+                    <h2>Meine nächsten Einsätze</h2>
+                </div>
 
-    <div class="col-md-4 mb-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h5>Offene Aufträge</h5>
-                <h2>@offeneAuftraege</h2>
-            </div>
-        </div>
-    </div>
+                @if (ausgewaehlterMitarbeiterId == 0)
+                {
+                    <p class="empty-message">Dem Benutzer ist kein Mitarbeiter zugeordnet.</p>
+                }
+                else if (PersoenlicheEinsaetze().Count == 0)
+                {
+                    <p class="empty-message">In den nächsten fünf Arbeitstagen sind keine Einsätze geplant.</p>
+                }
+                else
+                {
+                    <div class="entry-list">
+                        @foreach (var auftrag in PersoenlicheEinsaetze())
+                        {
+                            <button type="button" class="dashboard-entry order-entry" @onclick="() => AuftragOeffnen(auftrag)">
+                                <strong>@auftrag.Titel</strong>
+                                <span>@(auftrag.Kunde?.Firmenname ?? "Kein Kunde")</span>
+                                <span>@auftrag.Einsatzort</span>
+                                <small>@auftrag.Startdatum.ToString("dd.MM.yyyy") - @auftrag.Enddatum.ToString("dd.MM.yyyy")</small>
+                            </button>
+                        }
+                    </div>
+                }
+            </section>
 
-    <div class="col-md-4 mb-3">
-        <div class="card text-center">
-            <div class="card-body">
-                <h5>Besetzte Aufträge</h5>
-                <h2>@besetzteAuftraege</h2>
-            </div>
-        </div>
-    </div>
+            <section class="dashboard-section">
+                <div class="section-header">
+                    <h2>Meine Abwesenheiten / Anträge</h2>
+                </div>
 
+                @if (ausgewaehlterMitarbeiterId == 0)
+                {
+                    <p class="empty-message">Dem Benutzer ist kein Mitarbeiter zugeordnet.</p>
+                }
+                else if (PersoenlicheAbwesenheiten().Count == 0)
+                {
+                    <p class="empty-message">Es sind keine Abwesenheiten oder Anträge vorhanden.</p>
+                }
+                else
+                {
+                    <div class="entry-list">
+                        @foreach (var abwesenheit in PersoenlicheAbwesenheiten())
+                        {
+                            <div class="dashboard-entry">
+                                <strong>@abwesenheit.Typ</strong>
+                                <span>@abwesenheit.Von.ToString("dd.MM.yyyy") - @abwesenheit.Bis.ToString("dd.MM.yyyy")</span>
+                                <small>@abwesenheit.Status</small>
+                            </div>
+                        }
+                    </div>
+                }
+            </section>
+    </div>
 </div>
 
-@code {
+@if (ausgewaehlterAuftrag != null)
+{
+    <AuftragPopup Auftrag="@ausgewaehlterAuftrag"
+                   NurLesen="true"
+                   Geschlossen="AuftragSchliessen" />
+}
 
-    private int anzahlMitarbeiter;
-    private int verfuegbareMitarbeiter;
-    private int anzahlKunden;
-    private int anzahlAuftraege;
-    private int offeneAuftraege;
-    private int besetzteAuftraege;
+@if (arbeitszeitPopupSichtbar)
+{
+    <div class="popup-background" @onclick="ArbeitszeitPopupSchliessen">
+        <div class="entry-popup" @onclick:stopPropagation="true">
+            <h2>Arbeitszeit eintragen</h2>
+
+            <EditForm Model="@neueArbeitszeit" OnValidSubmit="ArbeitszeitSpeichern" FormName="DashboardArbeitszeit">
+                <DataAnnotationsValidator />
+
+                <div class="entry-form">
+                    <div class="form-group">
+                        <label>Datum</label>
+                        <InputDate class="form-input" @bind-Value="neueArbeitszeit.Datum" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Beginn</label>
+                        <input class="form-input" type="text" placeholder="HH:mm"
+                               @bind="beginnText" @bind:event="oninput" />
+                        @if (beginnFehler != string.Empty)
+                        {
+                            <span class="form-error">@beginnFehler</span>
+                        }
+                    </div>
+
+                    <div class="form-group">
+                        <label>Ende</label>
+                        <input class="form-input" type="text" placeholder="HH:mm"
+                               @bind="endeText" @bind:event="oninput" />
+                        @if (endeFehler != string.Empty)
+                        {
+                            <span class="form-error">@endeFehler</span>
+                        }
+                    </div>
+
+                    <div class="form-group">
+                        <label>Pause in Minuten</label>
+                        <InputNumber class="form-input" @bind-Value="neueArbeitszeit.PauseMinuten" />
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label>Notiz</label>
+                        <InputTextArea class="form-input" @bind-Value="neueArbeitszeit.Notiz" />
+                    </div>
+                </div>
+
+                @if (arbeitszeitFehler != string.Empty)
+                {
+                    <p class="form-error">@arbeitszeitFehler</p>
+                }
+
+                <div class="popup-actions">
+                    <button type="button" @onclick="ArbeitszeitPopupSchliessen">Abbrechen</button>
+                    <button type="submit" class="save-button">Speichern</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Mitarbeiter> mitarbeiter = new();
+    private List<Auftrag> auftraege = new();
+    private List<Arbeitszeit> arbeitszeiten = new();
+    private List<Abwesenheit> abwesenheiten = new();
+    private int ausgewaehlterMitarbeiterId;
+    private Auftrag? ausgewaehlterAuftrag;
+    private bool arbeitszeitPopupSichtbar;
+    private Arbeitszeit neueArbeitszeit = new();
+    private string arbeitszeitFehler = string.Empty;
+    private string beginnText = string.Empty;
+    private string endeText = string.Empty;
+    private string beginnFehler = string.Empty;
+    private string endeFehler = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
-        var mitarbeiter = await MitarbeiterService.GetAllAsync();
-        var kunden = await KundeService.GetAllAsync();
-        var auftraege = await AuftragService.GetAllAsync();
+        var authenticationState = await AuthenticationStateTask;
+        var user = await UserManager.GetUserAsync(authenticationState.User);
+        ausgewaehlterMitarbeiterId = user?.MitarbeiterId ?? 0;
 
-        anzahlMitarbeiter = mitarbeiter.Count;
-        verfuegbareMitarbeiter = mitarbeiter.Count(m => m.Verfuegbar);
+        if (ausgewaehlterMitarbeiterId == 0)
+        {
+            return;
+        }
 
-        anzahlKunden = kunden.Count;
+        var person = await MitarbeiterService.GetByIdAsync(ausgewaehlterMitarbeiterId);
 
-        anzahlAuftraege = auftraege.Count;
-        offeneAuftraege = auftraege.Count(a => !a.Besetzt);
-        besetzteAuftraege = auftraege.Count(a => a.Besetzt);
+        if (person != null)
+        {
+            mitarbeiter.Add(person);
+        }
+
+        auftraege = await AuftragService.GetByMitarbeiterAsync(ausgewaehlterMitarbeiterId);
+        arbeitszeiten = await ArbeitszeitService.GetByMitarbeiterAsync(ausgewaehlterMitarbeiterId);
+        abwesenheiten = await AbwesenheitService.GetByMitarbeiterAsync(ausgewaehlterMitarbeiterId);
+    }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
+
+    private List<Abwesenheit> PersoenlicheAbwesenheiten()
+    {
+        var ergebnis = new List<Abwesenheit>();
+
+        foreach (var abwesenheit in abwesenheiten)
+        {
+            if (AbwesenheitService.PasstZuMitarbeiter(abwesenheit, ausgewaehlterMitarbeiterId))
+            {
+                ergebnis.Add(abwesenheit);
+            }
+        }
+
+        return ergebnis;
+    }
+
+    private List<Auftrag> PersoenlicheEinsaetze()
+    {
+        var ergebnis = new List<Auftrag>();
+
+        foreach (var auftrag in auftraege)
+        {
+            if (AuftragService.PasstZuMitarbeiter(auftrag, ausgewaehlterMitarbeiterId)
+                && AuftragService.IstInNaechstenFuenfArbeitstagen(auftrag, DateTime.Today))
+            {
+                ergebnis.Add(auftrag);
+            }
+        }
+
+        return ergebnis;
+    }
+
+    private double MonatsIst()
+    {
+        return Monatsauswertung().Arbeitszeit;
+    }
+
+    private double MonatsSoll()
+    {
+        var person = AusgewaehlterMitarbeiter();
+
+        if (person == null)
+        {
+            return 0;
+        }
+
+        return Monatsauswertung().Soll;
+    }
+
+    private double MonatsSaldo()
+    {
+        return Monatsauswertung().Saldo;
+    }
+
+    private int MonatsAbwesenheitstage()
+    {
+        return Monatsauswertung().Abwesenheitstage;
+    }
+
+    private (double Arbeitszeit, double Soll, int Abwesenheitstage, double Saldo) Monatsauswertung()
+    {
+        var person = AusgewaehlterMitarbeiter();
+
+        if (person == null)
+        {
+            return (0, 0, 0, 0);
+        }
+
+        return ArbeitszeitService.BerechneMonatsauswertung(
+            arbeitszeiten,
+            abwesenheiten,
+            person.Id,
+            DateTime.Today.Year,
+            DateTime.Today.Month,
+            person.Wochenarbeitszeit,
+            DateTime.Today);
+    }
+
+    private string AbwesenheitstageAnzeigen()
+    {
+        var tage = MonatsAbwesenheitstage();
+        return tage == 1 ? "1 Tag" : tage + " Tage";
+    }
+
+    private string StundenAnzeigen(double stunden)
+    {
+        var kultur = CultureInfo.GetCultureInfo("de-DE");
+        return Math.Round(stunden, 1).ToString("0.0", kultur);
+    }
+
+    private string SaldoAnzeigen()
+    {
+        var saldo = MonatsSaldo();
+
+        if (saldo > 0)
+        {
+            return "+" + StundenAnzeigen(saldo);
+        }
+
+        if (saldo < 0)
+        {
+            return StundenAnzeigen(saldo);
+        }
+
+        return "0";
+    }
+
+    private string SaldoKlasse()
+    {
+        var saldo = MonatsSaldo();
+
+        if (saldo > 0)
+        {
+            return "positive-balance";
+        }
+
+        if (saldo < 0)
+        {
+            return "negative-balance";
+        }
+
+        return string.Empty;
+    }
+
+    private Mitarbeiter? AusgewaehlterMitarbeiter()
+    {
+        foreach (var person in mitarbeiter)
+        {
+            if (person.Id == ausgewaehlterMitarbeiterId)
+            {
+                return person;
+            }
+        }
+
+        return null;
+    }
+
+    private string AusgewaehlterMitarbeiterName()
+    {
+        var person = AusgewaehlterMitarbeiter();
+
+        if (person == null)
+        {
+            return string.Empty;
+        }
+
+        return MitarbeiterName(person);
+    }
+
+    private string AktuellerMonat()
+    {
+        var kultur = CultureInfo.GetCultureInfo("de-DE");
+        return DateTime.Today.ToString("MMMM yyyy", kultur);
+    }
+
+    private void AuftragOeffnen(Auftrag auftrag)
+    {
+        ausgewaehlterAuftrag = auftrag;
+    }
+
+    private void AuftragSchliessen()
+    {
+        ausgewaehlterAuftrag = null;
+    }
+
+    private void ArbeitszeitPopupOeffnen()
+    {
+        neueArbeitszeit = new Arbeitszeit
+        {
+            MitarbeiterId = ausgewaehlterMitarbeiterId,
+            Datum = DateTime.Today,
+            Beginn = new TimeOnly(8, 0),
+            Ende = new TimeOnly(16, 0)
+        };
+
+        beginnText = ArbeitszeitService.ZeitAnzeigen(neueArbeitszeit.Beginn);
+        endeText = ArbeitszeitService.ZeitAnzeigen(neueArbeitszeit.Ende);
+        beginnFehler = string.Empty;
+        endeFehler = string.Empty;
+        arbeitszeitFehler = string.Empty;
+        arbeitszeitPopupSichtbar = true;
+    }
+
+    private void ArbeitszeitPopupSchliessen()
+    {
+        arbeitszeitPopupSichtbar = false;
+        arbeitszeitFehler = string.Empty;
+        beginnText = string.Empty;
+        endeText = string.Empty;
+        beginnFehler = string.Empty;
+        endeFehler = string.Empty;
+        neueArbeitszeit = new Arbeitszeit();
+    }
+
+    private async Task ArbeitszeitSpeichern()
+    {
+        neueArbeitszeit.MitarbeiterId = ausgewaehlterMitarbeiterId;
+
+        if (ausgewaehlterMitarbeiterId == 0)
+        {
+            arbeitszeitFehler = "Dem Benutzer ist kein Mitarbeiter zugeordnet.";
+            return;
+        }
+
+        beginnFehler = string.Empty;
+        endeFehler = string.Empty;
+
+        var beginnIstGueltig = ArbeitszeitService.TryParseZeit(beginnText, out var beginn);
+        var endeIstGueltig = ArbeitszeitService.TryParseZeit(endeText, out var ende);
+
+        if (!beginnIstGueltig)
+        {
+            beginnFehler = "Bitte Uhrzeit im Format HH:mm eingeben.";
+        }
+
+        if (!endeIstGueltig)
+        {
+            endeFehler = "Bitte Uhrzeit im Format HH:mm eingeben.";
+        }
+
+        if (!beginnIstGueltig || !endeIstGueltig)
+        {
+            return;
+        }
+
+        neueArbeitszeit.Beginn = beginn;
+        neueArbeitszeit.Ende = ende;
+        arbeitszeitFehler = ArbeitszeitService.Validierungsfehler(neueArbeitszeit);
+
+        if (arbeitszeitFehler != string.Empty)
+        {
+            return;
+        }
+
+        await ArbeitszeitService.AddAsync(neueArbeitszeit);
+        arbeitszeiten = await ArbeitszeitService.GetByMitarbeiterAsync(ausgewaehlterMitarbeiterId);
+        ArbeitszeitPopupSchliessen();
+    }
+
+    private string MitarbeiterName(Mitarbeiter? person)
+    {
+        if (person == null)
+        {
+            return "Unbekannter Mitarbeiter";
+        }
+
+        return person.Vorname + " " + person.Nachname;
     }
 
 }

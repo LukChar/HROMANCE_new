@@ -3,16 +3,19 @@ using System;
 using HRomance.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace HRomance.Migrations
+namespace HRomance.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260811162919_AddWochenarbeitszeitToMitarbeiter")]
+    partial class AddWochenarbeitszeitToMitarbeiter
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.8");
@@ -72,9 +75,6 @@ namespace HRomance.Migrations
                     b.Property<DateTimeOffset?>("LockoutEnd")
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("MitarbeiterId")
-                        .HasColumnType("INTEGER");
-
                     b.Property<string>("NormalizedEmail")
                         .HasMaxLength(256)
                         .HasColumnType("TEXT");
@@ -104,9 +104,6 @@ namespace HRomance.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("MitarbeiterId")
-                        .IsUnique();
 
                     b.HasIndex("NormalizedEmail")
                         .HasDatabaseName("EmailIndex");
@@ -501,16 +498,6 @@ namespace HRomance.Migrations
                         .HasForeignKey("QualifikationenId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("HRomance.Data.ApplicationUser", b =>
-                {
-                    b.HasOne("HRomance.Models.Mitarbeiter", "Mitarbeiter")
-                        .WithOne()
-                        .HasForeignKey("HRomance.Data.ApplicationUser", "MitarbeiterId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Mitarbeiter");
                 });
 
             modelBuilder.Entity("HRomance.Models.Abwesenheit", b =>

@@ -83,16 +83,11 @@ using (var scope = app.Services.CreateScope())
 
 using (var scope = app.Services.CreateScope())
 {
-    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+    await DevelopmentDataSeeder.SeedRolesAsync(scope.ServiceProvider);
 
-    string[] roles = ["Admin", "Disponent"];
-
-    foreach (var role in roles)
+    if (app.Environment.IsDevelopment())
     {
-        if (!await roleManager.RoleExistsAsync(role))
-        {
-            await roleManager.CreateAsync(new IdentityRole(role));
-        }
+        await DevelopmentDataSeeder.SeedAsync(scope.ServiceProvider);
     }
 }
 

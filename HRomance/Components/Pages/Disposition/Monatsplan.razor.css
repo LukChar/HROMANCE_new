@@ -1,4 +1,6 @@
 .month-page {
+    width: 100%;
+    min-width: 0;
     max-width: 1400px;
     margin: 0 auto;
     font-family: inherit;
@@ -48,6 +50,7 @@
 }
 
 .calendar-card {
+    min-width: 0;
     padding: 16px;
     border: 1px solid #e2e5e9;
     border-radius: 8px;
@@ -75,13 +78,16 @@
 }
 
 .calendar-container {
-    overflow-x: auto;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .calendar-grid {
     display: grid;
-    min-width: 900px;
-    grid-template-columns: repeat(7, 1fr);
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     border-top: 1px solid #e2e5e9;
     border-left: 1px solid #e2e5e9;
 }
@@ -102,7 +108,8 @@
 }
 
 .day {
-    min-height: 122px;
+    min-width: 0;
+    min-height: 112px;
     padding: 6px;
     background-color: white;
 }
@@ -123,25 +130,30 @@
 }
 
 .order-entry {
-    display: block;
+    display: flex;
     box-sizing: border-box;
     width: auto;
-    height: 31px;
-    margin-bottom: 3px;
+    min-width: 0;
+    height: 24px;
+    margin-bottom: 2px;
     padding: 3px 5px;
     overflow: hidden;
     border: 1px solid;
     color: #30343b;
     background-color: white;
-    font-size: 11px;
+    font-size: 10px;
+    line-height: 16px;
     text-align: left;
     cursor: pointer;
 }
 
 .order-entry strong,
 .order-entry span {
-    display: block;
-    width: max-content;
+    display: inline;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
 }
 
@@ -162,31 +174,44 @@
 }
 
 .order-entry.start {
-    margin-right: -9px;
-    margin-left: 4px;
+    margin-right: -7px;
+    margin-left: 0;
     border-right: none;
     border-radius: 4px 0 0 4px;
+    overflow: visible;
 }
 
 .order-entry.middle {
-    margin-right: -9px;
-    margin-left: -9px;
+    margin-right: -7px;
+    margin-left: -7px;
     border-right: none;
     border-left: none;
     border-radius: 0;
 }
 
 .order-entry.end {
-    margin-right: 4px;
-    margin-left: -9px;
+    margin-right: 0;
+    margin-left: -7px;
     border-left: none;
     border-radius: 0 4px 4px 0;
 }
 
 .order-entry.single {
-    margin-right: 4px;
-    margin-left: 4px;
+    margin-right: 0;
+    margin-left: 0;
     border-radius: 4px;
+    overflow: visible;
+}
+
+.order-entry.start strong,
+.order-entry.single strong {
+    width: calc(var(--segment-days) * 100% + (var(--segment-days) - 1) * 13px);
+    max-width: none;
+}
+
+.order-lane-placeholder {
+    height: 24px;
+    margin-bottom: 2px;
 }
 
 .more-button {

@@ -127,13 +127,13 @@
         if (result.Succeeded)
         {
             Logger.LogInformation("User logged in.");
-            RedirectManager.RedirectTo(ReturnUrl);
+            RedirectManager.RedirectTo(IdentityRedirectManager.StandardLoginZiel);
         }
         else if (result.RequiresTwoFactor)
         {
             RedirectManager.RedirectTo(
                 "Account/LoginWith2fa",
-                new() { ["returnUrl"] = ReturnUrl, ["rememberMe"] = Input.RememberMe });
+                new() { ["returnUrl"] = IdentityRedirectManager.StandardLoginZiel, ["rememberMe"] = Input.RememberMe });
         }
         else if (result.IsLockedOut)
         {

@@ -29,4 +29,7 @@ public class Mitarbeiter
 
     [Range(0, 24, ErrorMessage = "Die Sollstunden müssen zwischen 0 und 24 liegen.")]
     public double SollStundenProTag { get; set; } = 8;
+
+    [Range(0, 80, ErrorMessage = "Die Wochenarbeitszeit muss zwischen 0 und 80 Stunden liegen.")]
+    public double Wochenarbeitszeit { get; set; } = 40;
 }

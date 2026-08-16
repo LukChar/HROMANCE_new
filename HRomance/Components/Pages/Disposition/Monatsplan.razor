@@ -1,4 +1,5 @@
 ﻿@page "/disposition/monatsplan"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin,Disponent")]
 @rendermode InteractiveServer
 
 @using System.Globalization
@@ -53,29 +54,41 @@
                     {
                         var datum = new DateTime(angezeigterMonat.Year, angezeigterMonat.Month, tag);
                         var auftraegeAmTag = AuftraegeAmTag(datum);
-                        var anzahlSichtbar = Math.Min(3, auftraegeAmTag.Count);
+                        var anzahlSichtbar = 0;
 
                         <div class="day @(datum.Date == DateTime.Today ? "today" : "")">
                             <div class="day-number">@tag</div>
 
-                            @for (var index = 0; index < anzahlSichtbar; index++)
+                            @for (var spur = 0; spur <= HoechsteAuftragsspurAmTag(auftraegeAmTag); spur++)
                             {
-                                var auftrag = auftraegeAmTag[index];
-                                <button type="button"
-                                        class="order-entry @AuftragsKlasse(auftrag, datum) @(IstBesetzt(auftrag) ? "occupied" : "open")"
-                                        @onclick="() => AuftragOeffnen(auftrag)">
-                                    @if (IstAuftragsSegmentStart(auftrag, datum))
+                                var auftrag = AuftragInSpur(auftraegeAmTag, spur);
+
+                                @if (spur < 3)
+                                {
+                                    @if (auftrag == null)
                                     {
-                                        <strong>@auftrag.Titel</strong>
-                                        <span>@(auftrag.Kunde?.Firmenname ?? "Kein Kunde")</span>
+                                        <div class="order-lane-placeholder"></div>
                                     }
-                                </button>
+                                    else
+                                    {
+                                        anzahlSichtbar++;
+                                        <button type="button"
+                                                class="order-entry @AuftragService.KalenderSegmentKlasse(auftrag, datum) @(IstBesetzt(auftrag) ? "occupied" : "open")"
+                                                style="--segment-days: @AuftragService.SichtbareKalenderSegmenttage(auftrag, datum)"
+                                                @onclick="() => AuftragOeffnen(auftrag)">
+                                            @if (AuftragService.IstKalenderSegmentStart(auftrag, datum))
+                                            {
+                                                <strong>@auftrag.Titel · @(auftrag.Kunde?.Firmenname ?? "Kein Kunde")</strong>
+                                            }
+                                        </button>
+                                    }
+                                }
                             }
 
-                            @if (auftraegeAmTag.Count > 3)
+                            @if (auftraegeAmTag.Count > anzahlSichtbar)
                             {
                                 <button type="button" class="more-button" @onclick="() => TagesPopupOeffnen(datum)">
-                                    + @(auftraegeAmTag.Count - 3) weitere
+                                    + @(auftraegeAmTag.Count - anzahlSichtbar) weitere
                                 </button>
                             }
                         </div>
@@ -126,6 +139,7 @@
     };
 
     private List<Auftrag> auftraege = new();
+    private Dictionary<int, int> auftragsspuren = new();
     private DateTime angezeigterMonat = new(DateTime.Today.Year, DateTime.Today.Month, 1);
     private Auftrag? ausgewaehlterAuftrag;
     private DateTime? tagesPopupDatum;
@@ -138,6 +152,7 @@
     private async Task DatenLaden()
     {
         auftraege = await AuftragService.GetAllAsync();
+        auftragsspuren = AuftragService.KalenderSpurenBestimmen(auftraege);
     }
 
     private void VorherigerMonat()
@@ -197,37 +212,34 @@
         return passendeAuftraege;
     }
 
-    private bool IstAuftragsSegmentStart(Auftrag auftrag, DateTime datum)
+    private int HoechsteAuftragsspurAmTag(List<Auftrag> auftraegeAmTag)
     {
-        return datum.Date == auftrag.Startdatum.Date
-            || datum.DayOfWeek == DayOfWeek.Monday
-            || datum.Day == 1;
+        var hoechsteSpur = -1;
+
+        foreach (var auftrag in auftraegeAmTag)
+        {
+            if (auftragsspuren.TryGetValue(auftrag.Id, out var spur)
+                && spur > hoechsteSpur)
+            {
+                hoechsteSpur = spur;
+            }
+        }
+
+        return hoechsteSpur;
     }
 
-    private string AuftragsKlasse(Auftrag auftrag, DateTime datum)
+    private Auftrag? AuftragInSpur(List<Auftrag> auftraegeAmTag, int gesuchteSpur)
     {
-        var letzterTag = DateTime.DaysInMonth(datum.Year, datum.Month);
-        var beginnt = IstAuftragsSegmentStart(auftrag, datum);
-        var endet = datum.Date == auftrag.Enddatum.Date
-            || datum.DayOfWeek == DayOfWeek.Sunday
-            || datum.Day == letzterTag;
-
-        if (beginnt && endet)
+        foreach (var auftrag in auftraegeAmTag)
         {
-            return "single";
+            if (auftragsspuren.TryGetValue(auftrag.Id, out var spur)
+                && spur == gesuchteSpur)
+            {
+                return auftrag;
+            }
         }
 
-        if (beginnt)
-        {
-            return "start";
-        }
-
-        if (endet)
-        {
-            return "end";
-        }
-
-        return "middle";
+        return null;
     }
 
     private bool IstBesetzt(Auftrag auftrag)

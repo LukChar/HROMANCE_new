@@ -10,6 +10,21 @@ namespace HRomance.Tests;
 public class AuftragServiceTests
 {
     [Fact]
+    public async Task MitarbeiterLaedtNurEigeneAuftraege()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var ersterMitarbeiter = await testdatenbank.MitarbeiterHinzufuegen(true);
+        var zweiterMitarbeiter = await testdatenbank.MitarbeiterHinzufuegen(true);
+        await testdatenbank.AuftragHinzufuegen(ersterMitarbeiter, 12, 13, "Eigener Auftrag");
+        await testdatenbank.AuftragHinzufuegen(zweiterMitarbeiter, 14, 15, "Fremder Auftrag");
+
+        var auftraege = await testdatenbank.Service.GetByMitarbeiterAsync(ersterMitarbeiter.Id);
+
+        var auftrag = Assert.Single(auftraege);
+        Assert.Equal("Eigener Auftrag", auftrag.Titel);
+    }
+
+    [Fact]
     public async Task MitarbeiterOhneKonfliktIstVerfuegbar()
     {
         using var testdatenbank = new Testdatenbank();
@@ -162,6 +177,70 @@ public class AuftragServiceTests
         var anzahl = testdatenbank.Service.AnzahlPassenderQualifikationen(auftrag, mitarbeiter);
 
         Assert.Equal(0, anzahl);
+    }
+
+    [Fact]
+    public void MehrtaegigerAuftragHatStartMitteUndEnde()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var auftrag = NeuerAuftrag(19, 21);
+
+        Assert.Equal("start", testdatenbank.Service.KalenderSegmentKlasse(auftrag, new DateTime(2026, 8, 19)));
+        Assert.Equal("middle", testdatenbank.Service.KalenderSegmentKlasse(auftrag, new DateTime(2026, 8, 20)));
+        Assert.Equal("end", testdatenbank.Service.KalenderSegmentKlasse(auftrag, new DateTime(2026, 8, 21)));
+        Assert.Equal(3, testdatenbank.Service.SichtbareKalenderSegmenttage(auftrag, new DateTime(2026, 8, 19)));
+    }
+
+    [Fact]
+    public void DreiUeberlappendeAuftraegeErhaltenStabileSpuren()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var erster = NeuerAuftrag(19, 22);
+        erster.Id = 1;
+        var zweiter = NeuerAuftrag(20, 21);
+        zweiter.Id = 2;
+        var dritter = NeuerAuftrag(21, 24);
+        dritter.Id = 3;
+
+        var spuren = testdatenbank.Service.KalenderSpurenBestimmen([dritter, zweiter, erster]);
+
+        Assert.Equal(0, spuren[erster.Id]);
+        Assert.Equal(1, spuren[zweiter.Id]);
+        Assert.Equal(2, spuren[dritter.Id]);
+    }
+
+    [Fact]
+    public void ZweiUeberlappendeAuftraegeBehaltenIhreSpur()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var erster = NeuerAuftrag(19, 21);
+        erster.Id = 1;
+        var zweiter = NeuerAuftrag(20, 21);
+        zweiter.Id = 2;
+
+        var spuren = testdatenbank.Service.KalenderSpurenBestimmen([zweiter, erster]);
+
+        Assert.Equal(0, spuren[erster.Id]);
+        Assert.Equal(1, spuren[zweiter.Id]);
+        Assert.True(testdatenbank.Service.IstEinsatzAmTag(zweiter, new DateTime(2026, 8, 20)));
+        Assert.True(testdatenbank.Service.IstEinsatzAmTag(zweiter, new DateTime(2026, 8, 21)));
+    }
+
+    [Fact]
+    public void AuftragBehaeltSpurUeberWochenwechsel()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var erster = NeuerAuftrag(21, 24);
+        erster.Id = 1;
+        var zweiter = NeuerAuftrag(22, 25);
+        zweiter.Id = 2;
+
+        var spuren = testdatenbank.Service.KalenderSpurenBestimmen([erster, zweiter]);
+
+        Assert.Equal(0, spuren[erster.Id]);
+        Assert.Equal(1, spuren[zweiter.Id]);
+        Assert.Equal("single", testdatenbank.Service.KalenderSegmentKlasse(erster, new DateTime(2026, 8, 24)));
+        Assert.Equal("start", testdatenbank.Service.KalenderSegmentKlasse(zweiter, new DateTime(2026, 8, 24)));
     }
 
     [Fact]

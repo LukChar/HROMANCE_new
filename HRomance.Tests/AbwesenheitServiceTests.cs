@@ -10,6 +10,239 @@ namespace HRomance.Tests;
 public class AbwesenheitServiceTests
 {
     [Fact]
+    public async Task PersoenlicherAntragWirdAngemeldetemMitarbeiterZugeordnetUndIstOffen()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var fritz = await testdatenbank.MitarbeiterHinzufuegen("Fritz");
+        var hans = await testdatenbank.MitarbeiterHinzufuegen("Hans");
+        var antrag = new Abwesenheit
+        {
+            MitarbeiterId = hans.Id,
+            Typ = "Urlaub",
+            Von = new DateTime(2026, 8, 20),
+            Bis = new DateTime(2026, 8, 22),
+            Status = "Genehmigt"
+        };
+
+        var gespeichert = await testdatenbank.Service
+            .PersoenlichenAntragHinzufuegenAsync(antrag, fritz.Id);
+        var geladenerAntrag = await testdatenbank.Service.GetByIdAsync(antrag.Id);
+
+        Assert.True(gespeichert);
+        Assert.Equal(fritz.Id, geladenerAntrag?.MitarbeiterId);
+        Assert.NotEqual(hans.Id, geladenerAntrag?.MitarbeiterId);
+        Assert.Equal("Offen", geladenerAntrag?.Status);
+    }
+
+    [Fact]
+    public async Task BisVorVonSpeichertKeinenPersoenlichenAntrag()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var fritz = await testdatenbank.MitarbeiterHinzufuegen("Fritz");
+        var antrag = new Abwesenheit
+        {
+            Typ = "Urlaub",
+            Von = new DateTime(2026, 8, 22),
+            Bis = new DateTime(2026, 8, 20)
+        };
+
+        var gespeichert = await testdatenbank.Service
+            .PersoenlichenAntragHinzufuegenAsync(antrag, fritz.Id);
+
+        Assert.False(gespeichert);
+        Assert.Empty(await testdatenbank.Service.GetAllAsync());
+    }
+
+    [Fact]
+    public async Task PersoenlicheListeEnthaeltNurEigeneAntraege()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var fritz = await testdatenbank.MitarbeiterHinzufuegen("Fritz");
+        var hans = await testdatenbank.MitarbeiterHinzufuegen("Hans");
+        await testdatenbank.Service.PersoenlichenAntragHinzufuegenAsync(
+            NeuerPersoenlicherAntrag("Urlaub"), fritz.Id);
+        await testdatenbank.Service.PersoenlichenAntragHinzufuegenAsync(
+            NeuerPersoenlicherAntrag("Zeitausgleich"), hans.Id);
+
+        var fritzAntraege = await testdatenbank.Service.GetByMitarbeiterAsync(fritz.Id);
+        var hansAntraege = await testdatenbank.Service.GetByMitarbeiterAsync(hans.Id);
+        var alleAntraege = await testdatenbank.Service.GetAllAsync();
+
+        Assert.Single(fritzAntraege);
+        Assert.Equal("Urlaub", fritzAntraege[0].Typ);
+        Assert.Single(hansAntraege);
+        Assert.Equal("Zeitausgleich", hansAntraege[0].Typ);
+        Assert.Equal(2, alleAntraege.Count);
+    }
+
+    [Fact]
+    public async Task DerselbeAntragWirdBeiMehrfachemSubmitNurEinmalGespeichert()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var fritz = await testdatenbank.MitarbeiterHinzufuegen("Fritz");
+        var antrag = NeuerPersoenlicherAntrag("Urlaub");
+
+        var erstesSpeichern = await testdatenbank.Service
+            .PersoenlichenAntragHinzufuegenAsync(antrag, fritz.Id);
+        var zweitesSpeichern = await testdatenbank.Service
+            .PersoenlichenAntragHinzufuegenAsync(antrag, fritz.Id);
+        var gespeicherteAntraege = await testdatenbank.Service.GetAllAsync();
+
+        Assert.True(erstesSpeichern);
+        Assert.False(zweitesSpeichern);
+        Assert.Single(gespeicherteAntraege);
+    }
+
+    [Fact]
+    public async Task NeuerAntragIstSofortInListeUndOffenerKpiEnthalten()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var fritz = await testdatenbank.MitarbeiterHinzufuegen("Fritz");
+        var antrag = NeuerPersoenlicherAntrag("Urlaub");
+
+        await testdatenbank.Service.PersoenlichenAntragHinzufuegenAsync(antrag, fritz.Id);
+        var antraege = await testdatenbank.Service.GetByMitarbeiterAsync(fritz.Id);
+        var offeneAntraege = 0;
+
+        foreach (var gespeicherterAntrag in antraege)
+        {
+            if (gespeicherterAntrag.Status == "Offen")
+            {
+                offeneAntraege++;
+            }
+        }
+
+        Assert.Single(antraege);
+        Assert.Equal(antrag.Id, antraege[0].Id);
+        Assert.Equal(1, offeneAntraege);
+    }
+
+    [Fact]
+    public void MehrtaegigeAbwesenheitUmfasstStartMitteUndEnde()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var abwesenheit = NeueAbwesenheit(
+            new DateTime(2026, 8, 19),
+            new DateTime(2026, 8, 21));
+        var sichtbareTage = 0;
+
+        for (var tag = 18; tag <= 22; tag++)
+        {
+            var datum = new DateTime(2026, 8, tag);
+
+            if (testdatenbank.Service.IstAbwesendAmTag(abwesenheit, datum))
+            {
+                sichtbareTage++;
+            }
+        }
+
+        Assert.Equal(3, sichtbareTage);
+        Assert.Equal("absence-start", testdatenbank.Service.KalenderSegmentKlasse(abwesenheit, new DateTime(2026, 8, 19)));
+        Assert.Equal("absence-middle", testdatenbank.Service.KalenderSegmentKlasse(abwesenheit, new DateTime(2026, 8, 20)));
+        Assert.Equal("absence-end", testdatenbank.Service.KalenderSegmentKlasse(abwesenheit, new DateTime(2026, 8, 21)));
+    }
+
+    [Fact]
+    public void AbwesenheitUeberWochenwechselBeginntInNeuerZeileNeu()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var abwesenheit = NeueAbwesenheit(
+            new DateTime(2026, 8, 21),
+            new DateTime(2026, 8, 24));
+
+        Assert.Equal("absence-start", testdatenbank.Service.KalenderSegmentKlasse(abwesenheit, new DateTime(2026, 8, 21)));
+        Assert.Equal("absence-middle", testdatenbank.Service.KalenderSegmentKlasse(abwesenheit, new DateTime(2026, 8, 22)));
+        Assert.Equal("absence-end", testdatenbank.Service.KalenderSegmentKlasse(abwesenheit, new DateTime(2026, 8, 23)));
+        Assert.Equal("absence-single", testdatenbank.Service.KalenderSegmentKlasse(abwesenheit, new DateTime(2026, 8, 24)));
+        Assert.True(testdatenbank.Service.IstKalenderSegmentStart(abwesenheit, new DateTime(2026, 8, 24)));
+    }
+
+    [Fact]
+    public void EintaegigeAbwesenheitWirdAlsEinzelnesSegmentDargestellt()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var abwesenheit = NeueAbwesenheit(
+            new DateTime(2026, 8, 20),
+            new DateTime(2026, 8, 20));
+
+        Assert.Equal("absence-single", testdatenbank.Service.KalenderSegmentKlasse(abwesenheit, new DateTime(2026, 8, 20)));
+        Assert.True(testdatenbank.Service.IstKalenderSegmentStart(abwesenheit, new DateTime(2026, 8, 20)));
+    }
+
+    [Fact]
+    public void SichtbareTextbreiteEndetAmWochenende()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var abwesenheit = NeueAbwesenheit(
+            new DateTime(2026, 8, 21),
+            new DateTime(2026, 8, 25));
+
+        Assert.Equal(3, testdatenbank.Service.SichtbareKalenderSegmenttage(
+            abwesenheit,
+            new DateTime(2026, 8, 21)));
+        Assert.Equal(2, testdatenbank.Service.SichtbareKalenderSegmenttage(
+            abwesenheit,
+            new DateTime(2026, 8, 24)));
+    }
+
+    [Fact]
+    public void UeberlappendeAbwesenheitenBehaltenIhreSpurBisZumEnde()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var ersterUrlaub = NeueAbwesenheit(
+            new DateTime(2026, 8, 19),
+            new DateTime(2026, 8, 21));
+        ersterUrlaub.Id = 1;
+        var zweiterUrlaub = NeueAbwesenheit(
+            new DateTime(2026, 8, 20),
+            new DateTime(2026, 8, 21));
+        zweiterUrlaub.Id = 2;
+
+        var spuren = testdatenbank.Service.KalenderSpurenBestimmen(
+            new List<Abwesenheit> { zweiterUrlaub, ersterUrlaub });
+
+        Assert.Equal(0, spuren[ersterUrlaub.Id]);
+        Assert.Equal(1, spuren[zweiterUrlaub.Id]);
+        Assert.True(testdatenbank.Service.IstAbwesendAmTag(zweiterUrlaub, new DateTime(2026, 8, 20)));
+        Assert.True(testdatenbank.Service.IstAbwesendAmTag(zweiterUrlaub, new DateTime(2026, 8, 21)));
+    }
+
+    [Fact]
+    public void SpurBleibtAuchNachWochenwechselGleich()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var ersterUrlaub = NeueAbwesenheit(
+            new DateTime(2026, 8, 21),
+            new DateTime(2026, 8, 24));
+        ersterUrlaub.Id = 1;
+        var zweiterUrlaub = NeueAbwesenheit(
+            new DateTime(2026, 8, 22),
+            new DateTime(2026, 8, 25));
+        zweiterUrlaub.Id = 2;
+
+        var spuren = testdatenbank.Service.KalenderSpurenBestimmen(
+            new List<Abwesenheit> { ersterUrlaub, zweiterUrlaub });
+
+        Assert.Equal(0, spuren[ersterUrlaub.Id]);
+        Assert.Equal(1, spuren[zweiterUrlaub.Id]);
+        Assert.Equal("absence-single", testdatenbank.Service.KalenderSegmentKlasse(ersterUrlaub, new DateTime(2026, 8, 24)));
+        Assert.Equal("absence-start", testdatenbank.Service.KalenderSegmentKlasse(zweiterUrlaub, new DateTime(2026, 8, 24)));
+    }
+
+    [Fact]
+    public void OffenerAntragIstImKalenderSichtbarUndAbgelehnterNicht()
+    {
+        using var testdatenbank = new Testdatenbank();
+        var datum = new DateTime(2026, 8, 20);
+        var offenerAntrag = NeuerPersoenlicherAntrag("Urlaub");
+        var abgelehnterAntrag = NeuerPersoenlicherAntrag("Urlaub");
+        abgelehnterAntrag.Status = "Abgelehnt";
+
+        Assert.True(testdatenbank.Service.IstAbwesendAmTag(offenerAntrag, datum));
+        Assert.False(testdatenbank.Service.IstAbwesendAmTag(abgelehnterAntrag, datum));
+    }
+
+    [Fact]
     public async Task OffenerAntragKannGenehmigtWerden()
     {
         using var testdatenbank = new Testdatenbank();
@@ -162,6 +395,29 @@ public class AbwesenheitServiceTests
         ];
     }
 
+    private static Abwesenheit NeuerPersoenlicherAntrag(string typ)
+    {
+        return new Abwesenheit
+        {
+            Typ = typ,
+            Von = new DateTime(2026, 8, 20),
+            Bis = new DateTime(2026, 8, 20),
+            Status = "Offen"
+        };
+    }
+
+    private static Abwesenheit NeueAbwesenheit(DateTime von, DateTime bis)
+    {
+        return new Abwesenheit
+        {
+            MitarbeiterId = 1,
+            Typ = "Urlaub",
+            Von = von,
+            Bis = bis,
+            Status = "Genehmigt"
+        };
+    }
+
     private static Abwesenheit NeuerAntrag(
         string vorname,
         string typ,
@@ -222,6 +478,20 @@ public class AbwesenheitServiceTests
             context.Abwesenheiten.Add(antrag);
             await context.SaveChangesAsync();
             return antrag;
+        }
+
+        public async Task<Mitarbeiter> MitarbeiterHinzufuegen(string vorname)
+        {
+            var mitarbeiter = new Mitarbeiter
+            {
+                Personalnummer = Guid.NewGuid().ToString(),
+                Vorname = vorname,
+                Nachname = "Test"
+            };
+
+            context.Mitarbeiter.Add(mitarbeiter);
+            await context.SaveChangesAsync();
+            return mitarbeiter;
         }
 
         public void Dispose()

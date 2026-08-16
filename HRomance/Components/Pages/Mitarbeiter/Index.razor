@@ -1,9 +1,13 @@
 ﻿@page "/mitarbeiter"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin,Disponent")]
 @rendermode InteractiveServer
 
 @using HRomance.Services
+@using HRomance.Models
 
 @inject MitarbeiterService MitarbeiterService
+@inject QualifikationService QualifikationService
+@inject ArbeitszeitService ArbeitszeitService
 
 <PageTitle>Mitarbeiter</PageTitle>
 
@@ -138,9 +142,12 @@
                                     }
                                 </td>
                                 <td>
-                                    <a href="/mitarbeiter/details/@mitarbeiter.Id" class="details-button">
+                                    <button type="button" class="details-button" @onclick="() => DetailsOeffnen(mitarbeiter)">
                                         Details
-                                    </a>
+                                    </button>
+                                    <button type="button" class="details-button" @onclick="() => BearbeitenOeffnen(mitarbeiter)">
+                                        Bearbeiten
+                                    </button>
                                 </td>
                             </tr>
                         }
@@ -153,6 +160,131 @@
 
 </div>
 
+@if (ausgewaehlterMitarbeiter != null)
+{
+    <div class="popup-background" @onclick="DetailsSchliessen">
+        <div class="entry-popup" @onclick:stopPropagation="true">
+            <h2>Mitarbeiterdetails</h2>
+
+            <div class="popup-details">
+                <h3>Stammdaten</h3>
+                <strong>@ausgewaehlterMitarbeiter.Vorname @ausgewaehlterMitarbeiter.Nachname</strong>
+                <span>Personalnummer: @ausgewaehlterMitarbeiter.Personalnummer</span>
+                <span>E-Mail: @ausgewaehlterMitarbeiter.Email</span>
+                @if (!string.IsNullOrWhiteSpace(ausgewaehlterMitarbeiter.Telefon))
+                {
+                    <span>Telefon: @ausgewaehlterMitarbeiter.Telefon</span>
+                }
+                <span>Wochenstunden: @ausgewaehlterMitarbeiter.Wochenarbeitszeit</span>
+                <span>Verfügbarkeit: @(ausgewaehlterMitarbeiter.Verfuegbar ? "Verfügbar" : "Nicht verfügbar")</span>
+                <span>Qualifikationen: @QualifikationenAnzeigen(ausgewaehlterMitarbeiter)</span>
+
+                <h3>Arbeitszeit – @AktuellerMonat()</h3>
+                <span>Arbeitszeit: @DezimalstundenAnzeigen(monatsArbeitszeit) h</span>
+                <span>Abwesenheit: @AbwesenheitstageAnzeigen()</span>
+                <span>Soll: @DezimalstundenAnzeigen(monatsSoll) h</span>
+                <span>Saldo: @SaldoAnzeigen(monatsSaldo) h</span>
+            </div>
+
+            <div class="popup-actions">
+                <button type="button" @onclick="() => BearbeitenOeffnen(ausgewaehlterMitarbeiter)">Bearbeiten</button>
+                <button type="button" @onclick="DetailsSchliessen">Schließen</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (bearbeitenPopupSichtbar && bearbeiteterMitarbeiter != null)
+{
+    <div class="popup-background" @onclick="BearbeitenSchliessen">
+        <div class="entry-popup edit-popup" @onclick:stopPropagation="true">
+            <h2>Mitarbeiter bearbeiten</h2>
+
+            <EditForm Model="bearbeiteterMitarbeiter" OnValidSubmit="BearbeitungSpeichern" FormName="MitarbeiterPopupBearbeiten">
+                <DataAnnotationsValidator />
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Personalnummer</label>
+                        <InputText class="form-input" @bind-Value="bearbeiteterMitarbeiter.Personalnummer" />
+                        <ValidationMessage For="@(() => bearbeiteterMitarbeiter.Personalnummer)" />
+                    </div>
+                    <div class="form-group">
+                        <label>Vorname</label>
+                        <InputText class="form-input" @bind-Value="bearbeiteterMitarbeiter.Vorname" />
+                        <ValidationMessage For="@(() => bearbeiteterMitarbeiter.Vorname)" />
+                    </div>
+                    <div class="form-group">
+                        <label>Nachname</label>
+                        <InputText class="form-input" @bind-Value="bearbeiteterMitarbeiter.Nachname" />
+                        <ValidationMessage For="@(() => bearbeiteterMitarbeiter.Nachname)" />
+                    </div>
+                    <div class="form-group">
+                        <label>E-Mail</label>
+                        <InputText class="form-input" @bind-Value="bearbeiteterMitarbeiter.Email" />
+                    </div>
+                    <div class="form-group">
+                        <label>Telefon</label>
+                        <InputText class="form-input" @bind-Value="bearbeiteterMitarbeiter.Telefon" />
+                    </div>
+                    <div class="form-group">
+                        <label>Wochenarbeitszeit</label>
+                        <InputNumber class="form-input" @bind-Value="bearbeiteterMitarbeiter.Wochenarbeitszeit" min="0" max="80" step="0.5" />
+                        <ValidationMessage For="@(() => bearbeiteterMitarbeiter.Wochenarbeitszeit)" />
+                    </div>
+                </div>
+
+                <div class="qualifikationen-group">
+                    <h3>Qualifikationen</h3>
+                    @if (qualifikationen.Count == 0)
+                    {
+                        <p>Es sind noch keine Qualifikationen vorhanden.</p>
+                    }
+                    else
+                    {
+                        <input class="qualification-search" type="text" placeholder="Qualifikation suchen..."
+                               value="@qualifikationssuche" @oninput="QualifikationssucheGeaendert" />
+                        <div class="qualification-list">
+                            @foreach (var qualifikation in qualifikationen)
+                            {
+                                @if (qualifikation.Name.Contains(qualifikationssuche, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <label class="qualification-option">
+                                        <input type="checkbox" checked="@IstQualifikationAusgewaehlt(qualifikation.Id)"
+                                               @onchange="() => QualifikationWechseln(qualifikation.Id)" />
+                                        @qualifikation.Name
+                                    </label>
+                                }
+                            }
+                        </div>
+                        <div class="selected-qualifications">
+                            @if (ausgewaehlteQualifikationIds.Count == 0)
+                            {
+                                <span>Keine Qualifikation ausgewählt.</span>
+                            }
+                            else
+                            {
+                                <strong>Ausgewählt:</strong>
+                                <span>@AusgewaehlteQualifikationsnamen()</span>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <label class="checkbox-group">
+                    <InputCheckbox @bind-Value="bearbeiteterMitarbeiter.Verfuegbar" />
+                    Verfügbar
+                </label>
+
+                <div class="popup-actions">
+                    <button type="button" @onclick="BearbeitenSchliessen">Abbrechen</button>
+                    <button type="submit" class="save-button">Speichern</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
 @code {
     private List<HRomance.Models.Mitarbeiter> mitarbeiterListe =
         new List<HRomance.Models.Mitarbeiter>();
@@ -164,10 +296,30 @@
     private int anzahlNichtVerfuegbar = 0;
     private string suchtext = string.Empty;
     private string verfuegbarkeitsfilter = "Alle";
+    private Mitarbeiter? ausgewaehlterMitarbeiter;
+    private Mitarbeiter? bearbeiteterMitarbeiter;
+    private List<Qualifikation> qualifikationen = new();
+    private List<int> ausgewaehlteQualifikationIds = new();
+    private string qualifikationssuche = string.Empty;
+    private bool bearbeitenPopupSichtbar;
+    private double monatsArbeitszeit;
+    private double monatsSoll;
+    private int monatsAbwesenheitstage;
+    private double monatsSaldo;
 
     protected override async Task OnInitializedAsync()
     {
         mitarbeiterListe = await MitarbeiterService.GetAllAsync();
+        qualifikationen = await QualifikationService.GetAllAsync();
+
+        MitarbeiterzahlenBerechnen();
+        FilterAnwenden();
+    }
+
+    private void MitarbeiterzahlenBerechnen()
+    {
+        anzahlVerfuegbar = 0;
+        anzahlNichtVerfuegbar = 0;
 
         foreach (var mitarbeiter in mitarbeiterListe)
         {
@@ -181,7 +333,6 @@
             }
         }
 
-        FilterAnwenden();
     }
 
     private void SucheGeaendert(ChangeEventArgs e)
@@ -224,5 +375,163 @@
                 gefilterteMitarbeiter.Add(mitarbeiter);
             }
         }
+    }
+
+    private async Task DetailsOeffnen(Mitarbeiter mitarbeiter)
+    {
+        var auswertung = await ArbeitszeitService.GetMonatsauswertungAsync(
+            mitarbeiter.Id,
+            DateTime.Today.Year,
+            DateTime.Today.Month,
+            mitarbeiter.Wochenarbeitszeit,
+            DateTime.Today);
+
+        monatsArbeitszeit = auswertung.Arbeitszeit;
+        monatsSoll = auswertung.Soll;
+        monatsAbwesenheitstage = auswertung.Abwesenheitstage;
+        monatsSaldo = auswertung.Saldo;
+        ausgewaehlterMitarbeiter = mitarbeiter;
+    }
+
+    private void DetailsSchliessen()
+    {
+        ausgewaehlterMitarbeiter = null;
+        monatsArbeitszeit = 0;
+        monatsSoll = 0;
+        monatsAbwesenheitstage = 0;
+        monatsSaldo = 0;
+    }
+
+    private void BearbeitenOeffnen(Mitarbeiter mitarbeiter)
+    {
+        ausgewaehlterMitarbeiter = null;
+        bearbeiteterMitarbeiter = MitarbeiterService.ErstelleArbeitskopie(mitarbeiter);
+
+        ausgewaehlteQualifikationIds.Clear();
+        foreach (var qualifikation in mitarbeiter.Qualifikationen)
+        {
+            ausgewaehlteQualifikationIds.Add(qualifikation.Id);
+        }
+
+        qualifikationssuche = string.Empty;
+        bearbeitenPopupSichtbar = true;
+    }
+
+    private void BearbeitenSchliessen()
+    {
+        bearbeitenPopupSichtbar = false;
+        bearbeiteterMitarbeiter = null;
+        ausgewaehlteQualifikationIds.Clear();
+        qualifikationssuche = string.Empty;
+    }
+
+    private async Task BearbeitungSpeichern()
+    {
+        if (bearbeiteterMitarbeiter == null)
+        {
+            return;
+        }
+
+        foreach (var qualifikation in qualifikationen)
+        {
+            if (ausgewaehlteQualifikationIds.Contains(qualifikation.Id))
+            {
+                bearbeiteterMitarbeiter.Qualifikationen.Add(qualifikation);
+            }
+        }
+
+        await MitarbeiterService.UpdateAsync(bearbeiteterMitarbeiter);
+        mitarbeiterListe = await MitarbeiterService.GetAllAsync();
+        MitarbeiterzahlenBerechnen();
+        FilterAnwenden();
+        BearbeitenSchliessen();
+    }
+
+    private void QualifikationssucheGeaendert(ChangeEventArgs e)
+    {
+        qualifikationssuche = e.Value?.ToString() ?? string.Empty;
+    }
+
+    private bool IstQualifikationAusgewaehlt(int id)
+    {
+        return ausgewaehlteQualifikationIds.Contains(id);
+    }
+
+    private void QualifikationWechseln(int id)
+    {
+        if (ausgewaehlteQualifikationIds.Contains(id))
+        {
+            ausgewaehlteQualifikationIds.Remove(id);
+        }
+        else
+        {
+            ausgewaehlteQualifikationIds.Add(id);
+        }
+    }
+
+    private string AusgewaehlteQualifikationsnamen()
+    {
+        var namen = string.Empty;
+
+        foreach (var qualifikation in qualifikationen)
+        {
+            if (ausgewaehlteQualifikationIds.Contains(qualifikation.Id))
+            {
+                if (namen != string.Empty)
+                {
+                    namen += ", ";
+                }
+
+                namen += qualifikation.Name;
+            }
+        }
+
+        return namen;
+    }
+
+    private string QualifikationenAnzeigen(Mitarbeiter mitarbeiter)
+    {
+        var namen = string.Empty;
+
+        foreach (var qualifikation in mitarbeiter.Qualifikationen)
+        {
+            if (namen != string.Empty)
+            {
+                namen += ", ";
+            }
+
+            namen += qualifikation.Name;
+        }
+
+        return namen == string.Empty ? "Keine Qualifikationen zugewiesen" : namen;
+    }
+
+    private string AktuellerMonat()
+    {
+        var kultur = System.Globalization.CultureInfo.GetCultureInfo("de-DE");
+        return DateTime.Today.ToString("MMMM yyyy", kultur);
+    }
+
+    private string DezimalstundenAnzeigen(double stunden)
+    {
+        var kultur = System.Globalization.CultureInfo.GetCultureInfo("de-DE");
+        return Math.Round(stunden, 1).ToString("0.0", kultur);
+    }
+
+    private string AbwesenheitstageAnzeigen()
+    {
+        return monatsAbwesenheitstage == 1
+            ? "1 Tag"
+            : monatsAbwesenheitstage + " Tage";
+    }
+
+    private string SaldoAnzeigen(double stunden)
+    {
+        if (stunden > 0)
+        {
+            return "+" + DezimalstundenAnzeigen(stunden);
+        }
+
+        return DezimalstundenAnzeigen(stunden);
     }
 }

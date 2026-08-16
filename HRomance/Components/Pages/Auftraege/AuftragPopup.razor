@@ -22,7 +22,7 @@
                 <span>Mitarbeiter: @MitarbeiterNamen(aktuellerAuftrag)</span>
             </div>
 
-            @if (aktuellerAuftrag.Mitarbeiter.Count > 0)
+            @if (!NurLesen && aktuellerAuftrag.Mitarbeiter.Count > 0)
             {
                 <div class="assigned-list">
                     @foreach (var mitarbeiter in aktuellerAuftrag.Mitarbeiter)
@@ -36,9 +36,12 @@
             }
 
             <div class="popup-actions">
-                <button type="button" @onclick="BearbeitenOeffnen">Bearbeiten</button>
-                <button type="button" @onclick="ZuweisungOeffnen">Mitarbeiter zuweisen</button>
-                <button type="button" class="delete-button" @onclick="LoeschenBestaetigen">Löschen</button>
+                @if (!NurLesen)
+                {
+                    <button type="button" @onclick="BearbeitenOeffnen">Bearbeiten</button>
+                    <button type="button" @onclick="ZuweisungOeffnen">Mitarbeiter zuweisen</button>
+                    <button type="button" class="delete-button" @onclick="LoeschenBestaetigen">Löschen</button>
+                }
                 <button type="button" @onclick="Abbrechen">Schließen</button>
             </div>
         }
@@ -177,6 +180,7 @@
 @code {
     [Parameter] public Auftrag? Auftrag { get; set; }
     [Parameter] public bool NeuerAuftrag { get; set; }
+    [Parameter] public bool NurLesen { get; set; }
     [Parameter] public DateTime? VorausgewaehltesDatum { get; set; }
     [Parameter] public EventCallback Aktualisiert { get; set; }
     [Parameter] public EventCallback Geschlossen { get; set; }

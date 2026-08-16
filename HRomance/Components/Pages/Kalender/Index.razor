@@ -1,71 +1,33 @@
 @page "/kalender"
 @rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
 
 @using System.Globalization
+@using HRomance.Data
 @using HRomance.Models
 @using HRomance.Services
+@using Microsoft.AspNetCore.Identity
 
 @inject AuftragService AuftragService
 @inject MitarbeiterService MitarbeiterService
 @inject ArbeitszeitService ArbeitszeitService
 @inject AbwesenheitService AbwesenheitService
 @inject NavigationManager NavigationManager
+@inject UserManager<ApplicationUser> UserManager
 
 <PageTitle>Kalender</PageTitle>
 
 <div class="kalender-page">
     <div class="page-header">
         <h1>Kalender</h1>
-        <p>Übersicht über geplante Aufträge</p>
-    </div>
-
-    <div class="employee-filter">
-        <label for="mitarbeitersuche">Mitarbeiter:</label>
-
-        @if (mitarbeitervorschlaegeSichtbar)
-        {
-            <div class="employee-search-backdrop" @onclick="MitarbeitersucheSchliessen"></div>
-        }
-
-        <div class="employee-search" @onclick:stopPropagation="true">
-            <input id="mitarbeitersuche"
-                   type="text"
-                   placeholder="Mitarbeiter suchen..."
-                   value="@mitarbeitersuche"
-                   @onfocus="MitarbeitersucheOeffnen"
-                   @oninput="MitarbeitersucheGeaendert" />
-
-            @if (mitarbeitervorschlaegeSichtbar)
-            {
-                <div class="employee-suggestions">
-                    <button type="button" class="employee-suggestion all-employees" @onclick="AlleMitarbeiterAuswaehlen">
-                        <strong>Alle Mitarbeiter</strong>
-                    </button>
-
-                    @if (GefilterteMitarbeiter().Count == 0)
-                    {
-                        <div class="no-employee-results">Keine Mitarbeiter gefunden.</div>
-                    }
-                    else
-                    {
-                        @foreach (var mitarbeiter in GefilterteMitarbeiter())
-                        {
-                            <button type="button" class="employee-suggestion" @onclick="() => MitarbeiterAuswaehlen(mitarbeiter)">
-                                <strong>@MitarbeiterName(mitarbeiter)</strong>
-                                <span>@mitarbeiter.Personalnummer · @MitarbeiterQualifikationen(mitarbeiter)</span>
-                            </button>
-                        }
-                    }
-                </div>
-            }
-        </div>
+        <p>Mein persönlicher Kalender</p>
     </div>
 
     <div class="employee-summary">
         <strong>@AusgewaehlterMitarbeiterName()</strong>
-        @if (mitarbeiterfilter == 0)
+        @if (mitarbeiterId == 0)
         {
-            <span>@Monatsname()</span>
+            <span>Dem Benutzer ist kein Mitarbeiter zugeordnet.</span>
         }
         else
         {
@@ -121,20 +83,31 @@
                              @ondblclick="() => EintragAmTagHinzufuegen(datum)">
                             <div class="day-number">@tag</div>
 
-                            @foreach (var abwesenheit in abwesenheitenAmTag)
+                            @for (var spur = 0; spur <= HoechsteAbwesenheitsspurAmTag(abwesenheitenAmTag); spur++)
                             {
+                                var abwesenheit = AbwesenheitInSpur(abwesenheitenAmTag, spur);
+
                                 @if (angezeigteEintraege < 4)
                                 {
                                     angezeigteEintraege++;
-                                    <div class="calendar-note absence-entry @AbwesenheitsKlasse(abwesenheit, datum)"
-                                         @onclick="() => AbwesenheitPopupOeffnen(abwesenheit)"
-                                         @onclick:stopPropagation="true"
-                                         @ondblclick:stopPropagation="true">
-                                        @if (IstAbwesenheitsSegmentStart(abwesenheit, datum))
-                                        {
-                                            <strong>@MitarbeiterName(abwesenheit.Mitarbeiter) · @abwesenheit.Typ · @abwesenheit.Status</strong>
-                                        }
-                                    </div>
+
+                                    @if (abwesenheit == null)
+                                    {
+                                        <div class="absence-lane-placeholder"></div>
+                                    }
+                                    else
+                                    {
+                                        <div class="calendar-note absence-entry @AbwesenheitService.KalenderSegmentKlasse(abwesenheit, datum)"
+                                             style="--segment-days: @AbwesenheitService.SichtbareKalenderSegmenttage(abwesenheit, datum)"
+                                             @onclick="() => AbwesenheitPopupOeffnen(abwesenheit)"
+                                             @onclick:stopPropagation="true"
+                                             @ondblclick:stopPropagation="true">
+                                            @if (AbwesenheitService.IstKalenderSegmentStart(abwesenheit, datum))
+                                            {
+                                                <strong>@MitarbeiterName(abwesenheit.Mitarbeiter) · @abwesenheit.Typ · @abwesenheit.Status</strong>
+                                            }
+                                        </div>
+                                    }
                                 }
                             }
 
@@ -163,7 +136,7 @@
                                          @onclick:stopPropagation="true"
                                          @ondblclick:stopPropagation="true">
                                         <strong>@MitarbeiterName(arbeitszeit.Mitarbeiter)</strong>
-                                        <span>· @arbeitszeit.Beginn.ToString("HH:mm") - @arbeitszeit.Ende.ToString("HH:mm")</span>
+                                        <span>· @ArbeitszeitService.ZeitraumAnzeigen(arbeitszeit.Beginn, arbeitszeit.Ende)</span>
                                     </div>
                                 }
                             }
@@ -171,7 +144,7 @@
                             @if (anzahlEintraege > 4)
                             {
                                 <button type="button" class="more-entries"
-                                        @onclick="() => TagAuswaehlen(datum)"
+                                        @onclick="() => TageslisteOeffnen(datum)"
                                         @onclick:stopPropagation="true"
                                         @ondblclick:stopPropagation="true">
                                     + @(anzahlEintraege - 4) weitere
@@ -235,7 +208,7 @@
                         {
                             <div class="day-entry">
                                 <strong>@MitarbeiterName(arbeitszeit.Mitarbeiter)</strong>
-                                <span>@arbeitszeit.Beginn.ToString("HH:mm") - @arbeitszeit.Ende.ToString("HH:mm")</span>
+                                <span>@ArbeitszeitService.ZeitraumAnzeigen(arbeitszeit.Beginn, arbeitszeit.Ende)</span>
                                 <span>Pause: @arbeitszeit.PauseMinuten Minuten</span>
                                 <span>Gearbeitet: @StundenAnzeigen(ArbeitszeitService.BerechneArbeitsstunden(arbeitszeit)) Std.</span>
                                 @if (!string.IsNullOrWhiteSpace(arbeitszeit.Notiz))
@@ -296,30 +269,28 @@
 
                         <div class="entry-form">
                             <div class="form-group">
-                                <label>Mitarbeiter</label>
-                                <InputSelect class="form-input" @bind-Value="bearbeiteteArbeitszeit.MitarbeiterId">
-                                    <option value="0">Bitte auswählen</option>
-                                    @foreach (var mitarbeiter in mitarbeiterListe)
-                                    {
-                                        <option value="@mitarbeiter.Id">@mitarbeiter.Vorname @mitarbeiter.Nachname</option>
-                                    }
-                                </InputSelect>
-                                <ValidationMessage For="@(() => bearbeiteteArbeitszeit.MitarbeiterId)" />
-                            </div>
-
-                            <div class="form-group">
                                 <label>Datum</label>
                                 <InputDate class="form-input" @bind-Value="bearbeiteteArbeitszeit.Datum" />
                             </div>
 
                             <div class="form-group">
                                 <label>Beginn</label>
-                                <InputDate class="form-input" Type="InputDateType.Time" @bind-Value="bearbeiteteArbeitszeit.Beginn" />
+                                <input class="form-input" type="text" placeholder="HH:mm"
+                                       @bind="beginnText" @bind:event="oninput" />
+                                @if (beginnFehler != string.Empty)
+                                {
+                                    <span class="form-error">@beginnFehler</span>
+                                }
                             </div>
 
                             <div class="form-group">
                                 <label>Ende</label>
-                                <InputDate class="form-input" Type="InputDateType.Time" @bind-Value="bearbeiteteArbeitszeit.Ende" />
+                                <input class="form-input" type="text" placeholder="HH:mm"
+                                       @bind="endeText" @bind:event="oninput" />
+                                @if (endeFehler != string.Empty)
+                                {
+                                    <span class="form-error">@endeFehler</span>
+                                }
                             </div>
 
                             <div class="form-group">
@@ -358,18 +329,6 @@
                         <DataAnnotationsValidator />
 
                         <div class="entry-form">
-                            <div class="form-group">
-                                <label>Mitarbeiter</label>
-                                <InputSelect class="form-input" @bind-Value="bearbeiteteAbwesenheit.MitarbeiterId">
-                                    <option value="0">Bitte auswählen</option>
-                                    @foreach (var mitarbeiter in mitarbeiterListe)
-                                    {
-                                        <option value="@mitarbeiter.Id">@mitarbeiter.Vorname @mitarbeiter.Nachname</option>
-                                    }
-                                </InputSelect>
-                                <ValidationMessage For="@(() => bearbeiteteAbwesenheit.MitarbeiterId)" />
-                            </div>
-
                             <div class="form-group">
                                 <label>Von</label>
                                 <InputDate class="form-input" @bind-Value="bearbeiteteAbwesenheit.Von" />
@@ -447,30 +406,28 @@
 
                             <div class="entry-form">
                                 <div class="form-group">
-                                    <label>Mitarbeiter</label>
-                                    <InputSelect class="form-input" @bind-Value="neueArbeitszeit.MitarbeiterId">
-                                        <option value="0">Bitte auswählen</option>
-                                        @foreach (var mitarbeiter in mitarbeiterListe)
-                                        {
-                                            <option value="@mitarbeiter.Id">@mitarbeiter.Vorname @mitarbeiter.Nachname</option>
-                                        }
-                                    </InputSelect>
-                                    <ValidationMessage For="@(() => neueArbeitszeit.MitarbeiterId)" />
-                                </div>
-
-                                <div class="form-group">
                                     <label>Datum</label>
                                     <InputDate class="form-input" @bind-Value="neueArbeitszeit.Datum" />
                                 </div>
 
                                 <div class="form-group">
                                     <label>Beginn</label>
-                                    <InputDate class="form-input" Type="InputDateType.Time" @bind-Value="neueArbeitszeit.Beginn" />
+                                    <input class="form-input" type="text" placeholder="HH:mm"
+                                           @bind="beginnText" @bind:event="oninput" />
+                                    @if (beginnFehler != string.Empty)
+                                    {
+                                        <span class="form-error">@beginnFehler</span>
+                                    }
                                 </div>
 
                                 <div class="form-group">
                                     <label>Ende</label>
-                                    <InputDate class="form-input" Type="InputDateType.Time" @bind-Value="neueArbeitszeit.Ende" />
+                                    <input class="form-input" type="text" placeholder="HH:mm"
+                                           @bind="endeText" @bind:event="oninput" />
+                                    @if (endeFehler != string.Empty)
+                                    {
+                                        <span class="form-error">@endeFehler</span>
+                                    }
                                 </div>
 
                                 <div class="form-group">
@@ -503,18 +460,6 @@
                             <DataAnnotationsValidator />
 
                             <div class="entry-form">
-                                <div class="form-group">
-                                    <label>Mitarbeiter</label>
-                                    <InputSelect class="form-input" @bind-Value="neueAbwesenheit.MitarbeiterId">
-                                        <option value="0">Bitte auswählen</option>
-                                        @foreach (var mitarbeiter in mitarbeiterListe)
-                                        {
-                                            <option value="@mitarbeiter.Id">@mitarbeiter.Vorname @mitarbeiter.Nachname</option>
-                                        }
-                                    </InputSelect>
-                                    <ValidationMessage For="@(() => neueAbwesenheit.MitarbeiterId)" />
-                                </div>
-
                                 <div class="form-group">
                                     <label>Von</label>
                                     <InputDate class="form-input" @bind-Value="neueAbwesenheit.Von" />
@@ -560,18 +505,53 @@
     }
 </div>
 
-@if (popupSichtbar && (popupArt == "Arbeitszeit" || popupArt == "Abwesenheit" || popupArt == "Auftrag"))
+@if (popupSichtbar && (popupArt == "Arbeitszeit" || popupArt == "Abwesenheit" || popupArt == "Auftrag" || popupArt == "Tagesliste"))
 {
     <div class="popup-background" @onclick="PopupSchliessen">
         <div class="entry-popup" @onclick:stopPropagation="true">
-            @if (popupArt == "Arbeitszeit" && popupArbeitszeit != null)
+            @if (popupArt == "Tagesliste" && popupTageslisteDatum != null)
+            {
+                <h2>@DatumAnzeigen(popupTageslisteDatum.Value)</h2>
+
+                <div class="day-popup-list">
+                    @foreach (var arbeitszeit in ArbeitszeitenAmTag(popupTageslisteDatum.Value))
+                    {
+                        <button type="button" class="day-popup-entry work-entry" @onclick="() => ArbeitszeitAusTageslisteOeffnen(arbeitszeit)">
+                            <strong>Arbeitszeit: @MitarbeiterName(arbeitszeit.Mitarbeiter)</strong>
+                            <span>@ArbeitszeitService.ZeitraumAnzeigen(arbeitszeit.Beginn, arbeitszeit.Ende)</span>
+                        </button>
+                    }
+
+                    @foreach (var abwesenheit in AbwesenheitenAmTag(popupTageslisteDatum.Value))
+                    {
+                        <button type="button" class="day-popup-entry absence-entry" @onclick="() => AbwesenheitAusTageslisteOeffnen(abwesenheit)">
+                            <strong>Abwesenheit: @MitarbeiterName(abwesenheit.Mitarbeiter)</strong>
+                            <span>@abwesenheit.Typ</span>
+                            <span>@abwesenheit.Status</span>
+                        </button>
+                    }
+
+                    @foreach (var auftrag in AuftraegeAmTag(popupTageslisteDatum.Value))
+                    {
+                        <button type="button" class="day-popup-entry @(auftrag.Besetzt ? "occupied" : "open")" @onclick="() => AuftragAusTageslisteOeffnen(auftrag)">
+                            <strong>Auftrag: @auftrag.Titel</strong>
+                            <span>@(auftrag.Kunde?.Firmenname ?? "Kein Kunde") · @(auftrag.Besetzt ? "Besetzt" : "Offen")</span>
+                        </button>
+                    }
+                </div>
+
+                <div class="popup-actions">
+                    <button type="button" @onclick="PopupSchliessen">Schließen</button>
+                </div>
+            }
+            else if (popupArt == "Arbeitszeit" && popupArbeitszeit != null)
             {
                 <h2>Arbeitszeit</h2>
                 <div class="popup-details">
                     <strong>@MitarbeiterName(popupArbeitszeit.Mitarbeiter)</strong>
                     <span>Datum: @popupArbeitszeit.Datum.ToString("dd.MM.yyyy")</span>
-                    <span>Beginn: @popupArbeitszeit.Beginn.ToString("HH:mm")</span>
-                    <span>Ende: @popupArbeitszeit.Ende.ToString("HH:mm")</span>
+                    <span>Beginn: @ArbeitszeitService.ZeitAnzeigen(popupArbeitszeit.Beginn)</span>
+                    <span>Ende: @ArbeitszeitService.ZeitAnzeigen(popupArbeitszeit.Ende)</span>
                     <span>Pause: @popupArbeitszeit.PauseMinuten Minuten</span>
                     <span>Gearbeitet: @StundenAnzeigen(ArbeitszeitService.BerechneArbeitsstunden(popupArbeitszeit)) Std.</span>
                     @if (!string.IsNullOrWhiteSpace(popupArbeitszeit.Notiz))
@@ -646,6 +626,7 @@
     private List<Mitarbeiter> mitarbeiterListe = new();
     private List<Arbeitszeit> arbeitszeiten = new();
     private List<Abwesenheit> abwesenheiten = new();
+    private Dictionary<int, int> abwesenheitsspuren = new();
     private DateTime angezeigterMonat = new(DateTime.Today.Year, DateTime.Today.Month, 1);
     private DateTime? ausgewaehltesDatum;
     private string ausgewaehlteEintragsart = string.Empty;
@@ -654,22 +635,44 @@
     private Arbeitszeit bearbeiteteArbeitszeit = new();
     private Abwesenheit bearbeiteteAbwesenheit = new();
     private string formularFehler = string.Empty;
+    private string beginnText = string.Empty;
+    private string endeText = string.Empty;
+    private string beginnFehler = string.Empty;
+    private string endeFehler = string.Empty;
     private bool popupSichtbar;
     private string popupArt = string.Empty;
     private Auftrag? popupAuftrag;
     private Arbeitszeit? popupArbeitszeit;
     private Abwesenheit? popupAbwesenheit;
-    private int mitarbeiterfilter;
-    private string mitarbeitersuche = string.Empty;
-    private bool mitarbeitervorschlaegeSichtbar;
+    private DateTime? popupTageslisteDatum;
+    private int mitarbeiterId;
 
     protected override async Task OnInitializedAsync()
     {
-        auftraege = await AuftragService.GetAllAsync();
-        mitarbeiterListe = await MitarbeiterService.GetAllAsync();
-        arbeitszeiten = await ArbeitszeitService.GetAllAsync();
-        abwesenheiten = await AbwesenheitService.GetAllAsync();
+        var authenticationState = await AuthenticationStateTask;
+        var user = await UserManager.GetUserAsync(authenticationState.User);
+        mitarbeiterId = user?.MitarbeiterId ?? 0;
+
+        if (mitarbeiterId == 0)
+        {
+            return;
+        }
+
+        var mitarbeiter = await MitarbeiterService.GetByIdAsync(mitarbeiterId);
+
+        if (mitarbeiter != null)
+        {
+            mitarbeiterListe.Add(mitarbeiter);
+        }
+
+        auftraege = await AuftragService.GetByMitarbeiterAsync(mitarbeiterId);
+        arbeitszeiten = await ArbeitszeitService.GetByMitarbeiterAsync(mitarbeiterId);
+        abwesenheiten = await AbwesenheitService.GetByMitarbeiterAsync(mitarbeiterId);
+        AbwesenheitsspurenAktualisieren();
     }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
 
     private void VorherigerMonat()
     {
@@ -738,15 +741,19 @@
         {
             neueArbeitszeit = new Arbeitszeit
             {
+                MitarbeiterId = mitarbeiterId,
                 Datum = ausgewaehltesDatum.Value,
                 Beginn = new TimeOnly(8, 0),
                 Ende = new TimeOnly(16, 0)
             };
+
+            ZeittexteSetzen(neueArbeitszeit);
         }
         else
         {
             neueAbwesenheit = new Abwesenheit
             {
+                MitarbeiterId = mitarbeiterId,
                 Von = ausgewaehltesDatum.Value,
                 Bis = ausgewaehltesDatum.Value,
                 Typ = eintragsart == "Urlaub" ? "Urlaub" : "Sonstige Abwesenheit",
@@ -757,6 +764,19 @@
 
     private async Task ArbeitszeitSpeichern()
     {
+        neueArbeitszeit.MitarbeiterId = mitarbeiterId;
+
+        if (mitarbeiterId == 0)
+        {
+            formularFehler = "Dem Benutzer ist kein Mitarbeiter zugeordnet.";
+            return;
+        }
+
+        if (!ZeittexteUebernehmen(neueArbeitszeit))
+        {
+            return;
+        }
+
         formularFehler = ArbeitszeitService.Validierungsfehler(neueArbeitszeit);
 
         if (formularFehler != string.Empty)
@@ -765,12 +785,20 @@
         }
 
         await ArbeitszeitService.AddAsync(neueArbeitszeit);
-        arbeitszeiten = await ArbeitszeitService.GetAllAsync();
+        arbeitszeiten = await ArbeitszeitService.GetByMitarbeiterAsync(mitarbeiterId);
         EintragAbbrechen();
     }
 
     private async Task AbwesenheitSpeichern()
     {
+        neueAbwesenheit.MitarbeiterId = mitarbeiterId;
+
+        if (mitarbeiterId == 0)
+        {
+            formularFehler = "Dem Benutzer ist kein Mitarbeiter zugeordnet.";
+            return;
+        }
+
         if (neueAbwesenheit.Bis.Date < neueAbwesenheit.Von.Date)
         {
             formularFehler = "Das Bis-Datum darf nicht vor dem Von-Datum liegen.";
@@ -779,7 +807,8 @@
 
         neueAbwesenheit.Status = "Offen";
         await AbwesenheitService.AddAsync(neueAbwesenheit);
-        abwesenheiten = await AbwesenheitService.GetAllAsync();
+        abwesenheiten = await AbwesenheitService.GetByMitarbeiterAsync(mitarbeiterId);
+        AbwesenheitsspurenAktualisieren();
         EintragAbbrechen();
     }
 
@@ -795,6 +824,7 @@
     private void ArbeitszeitBearbeiten(Arbeitszeit arbeitszeit)
     {
         bearbeiteteArbeitszeit = ArbeitszeitService.ErstelleArbeitskopie(arbeitszeit);
+        ZeittexteSetzen(bearbeiteteArbeitszeit);
 
         formularFehler = string.Empty;
         popupArt = "ArbeitszeitBearbeiten";
@@ -803,6 +833,13 @@
 
     private async Task ArbeitszeitAenderungenSpeichern()
     {
+        bearbeiteteArbeitszeit.MitarbeiterId = mitarbeiterId;
+
+        if (!ZeittexteUebernehmen(bearbeiteteArbeitszeit))
+        {
+            return;
+        }
+
         formularFehler = ArbeitszeitService.Validierungsfehler(bearbeiteteArbeitszeit);
 
         if (formularFehler != string.Empty)
@@ -811,14 +848,14 @@
         }
 
         await ArbeitszeitService.UpdateAsync(bearbeiteteArbeitszeit);
-        arbeitszeiten = await ArbeitszeitService.GetAllAsync();
+        arbeitszeiten = await ArbeitszeitService.GetByMitarbeiterAsync(mitarbeiterId);
         BearbeitungAbbrechen();
     }
 
     private async Task ArbeitszeitLoeschen(int id)
     {
         await ArbeitszeitService.DeleteAsync(id);
-        arbeitszeiten = await ArbeitszeitService.GetAllAsync();
+        arbeitszeiten = await ArbeitszeitService.GetByMitarbeiterAsync(mitarbeiterId);
 
         if (bearbeiteteArbeitszeit.Id == id)
         {
@@ -846,6 +883,8 @@
 
     private async Task AbwesenheitAenderungenSpeichern()
     {
+        bearbeiteteAbwesenheit.MitarbeiterId = mitarbeiterId;
+
         if (bearbeiteteAbwesenheit.Bis.Date < bearbeiteteAbwesenheit.Von.Date)
         {
             formularFehler = "Das Bis-Datum darf nicht vor dem Von-Datum liegen.";
@@ -853,14 +892,16 @@
         }
 
         await AbwesenheitService.UpdateAsync(bearbeiteteAbwesenheit);
-        abwesenheiten = await AbwesenheitService.GetAllAsync();
+        abwesenheiten = await AbwesenheitService.GetByMitarbeiterAsync(mitarbeiterId);
+        AbwesenheitsspurenAktualisieren();
         BearbeitungAbbrechen();
     }
 
     private async Task AbwesenheitLoeschen(int id)
     {
         await AbwesenheitService.DeleteAsync(id);
-        abwesenheiten = await AbwesenheitService.GetAllAsync();
+        abwesenheiten = await AbwesenheitService.GetByMitarbeiterAsync(mitarbeiterId);
+        AbwesenheitsspurenAktualisieren();
 
         if (bearbeiteteAbwesenheit.Id == id)
         {
@@ -873,6 +914,7 @@
         formularFehler = string.Empty;
         bearbeiteteArbeitszeit = new Arbeitszeit();
         bearbeiteteAbwesenheit = new Abwesenheit();
+        ZeittexteZuruecksetzen();
         PopupSchliessen();
     }
 
@@ -885,12 +927,39 @@
         popupSichtbar = true;
     }
 
+    private void TageslisteOeffnen(DateTime datum)
+    {
+        ausgewaehltesDatum = datum;
+        popupTageslisteDatum = datum;
+        popupArt = "Tagesliste";
+        popupSichtbar = true;
+    }
+
+    private void ArbeitszeitAusTageslisteOeffnen(Arbeitszeit arbeitszeit)
+    {
+        PopupSchliessen();
+        ArbeitszeitPopupOeffnen(arbeitszeit);
+    }
+
+    private void AbwesenheitAusTageslisteOeffnen(Abwesenheit abwesenheit)
+    {
+        PopupSchliessen();
+        AbwesenheitPopupOeffnen(abwesenheit);
+    }
+
+    private void AuftragAusTageslisteOeffnen(Auftrag auftrag)
+    {
+        PopupSchliessen();
+        AuftragPopupOeffnen(auftrag);
+    }
+
     private void ArbeitszeitPopupOeffnen(Arbeitszeit arbeitszeit)
     {
         ausgewaehltesDatum = arbeitszeit.Datum.Date;
         popupAuftrag = null;
         popupArbeitszeit = arbeitszeit;
         popupAbwesenheit = null;
+        popupTageslisteDatum = null;
         popupArt = "Arbeitszeit";
         popupSichtbar = true;
     }
@@ -912,12 +981,58 @@
         popupAuftrag = null;
         popupArbeitszeit = null;
         popupAbwesenheit = null;
+        popupTageslisteDatum = null;
         ausgewaehlteEintragsart = string.Empty;
         formularFehler = string.Empty;
         neueArbeitszeit = new Arbeitszeit();
         neueAbwesenheit = new Abwesenheit();
         bearbeiteteArbeitszeit = new Arbeitszeit();
         bearbeiteteAbwesenheit = new Abwesenheit();
+        ZeittexteZuruecksetzen();
+    }
+
+    private void ZeittexteSetzen(Arbeitszeit arbeitszeit)
+    {
+        beginnText = ArbeitszeitService.ZeitAnzeigen(arbeitszeit.Beginn);
+        endeText = ArbeitszeitService.ZeitAnzeigen(arbeitszeit.Ende);
+        beginnFehler = string.Empty;
+        endeFehler = string.Empty;
+    }
+
+    private bool ZeittexteUebernehmen(Arbeitszeit arbeitszeit)
+    {
+        beginnFehler = string.Empty;
+        endeFehler = string.Empty;
+
+        var beginnIstGueltig = ArbeitszeitService.TryParseZeit(beginnText, out var beginn);
+        var endeIstGueltig = ArbeitszeitService.TryParseZeit(endeText, out var ende);
+
+        if (!beginnIstGueltig)
+        {
+            beginnFehler = "Bitte Uhrzeit im Format HH:mm eingeben.";
+        }
+
+        if (!endeIstGueltig)
+        {
+            endeFehler = "Bitte Uhrzeit im Format HH:mm eingeben.";
+        }
+
+        if (!beginnIstGueltig || !endeIstGueltig)
+        {
+            return false;
+        }
+
+        arbeitszeit.Beginn = beginn;
+        arbeitszeit.Ende = ende;
+        return true;
+    }
+
+    private void ZeittexteZuruecksetzen()
+    {
+        beginnText = string.Empty;
+        endeText = string.Empty;
+        beginnFehler = string.Empty;
+        endeFehler = string.Empty;
     }
 
     private void ArbeitszeitAusPopupBearbeiten()
@@ -966,85 +1081,6 @@
         var id = popupAbwesenheit.Id;
         PopupSchliessen();
         await AbwesenheitLoeschen(id);
-    }
-
-    private void MitarbeitersucheOeffnen()
-    {
-        mitarbeitersuche = string.Empty;
-        mitarbeitervorschlaegeSichtbar = true;
-    }
-
-    private void MitarbeitersucheGeaendert(ChangeEventArgs e)
-    {
-        mitarbeitersuche = e.Value?.ToString() ?? string.Empty;
-        mitarbeitervorschlaegeSichtbar = true;
-    }
-
-    private void MitarbeiterAuswaehlen(Mitarbeiter mitarbeiter)
-    {
-        mitarbeiterfilter = mitarbeiter.Id;
-        mitarbeitersuche = MitarbeiterName(mitarbeiter);
-        mitarbeitervorschlaegeSichtbar = false;
-    }
-
-    private void AlleMitarbeiterAuswaehlen()
-    {
-        mitarbeiterfilter = 0;
-        mitarbeitersuche = string.Empty;
-        mitarbeitervorschlaegeSichtbar = false;
-    }
-
-    private void MitarbeitersucheSchliessen()
-    {
-        var ausgewaehlterMitarbeiter = mitarbeiterListe.Find(m => m.Id == mitarbeiterfilter);
-
-        if (ausgewaehlterMitarbeiter == null)
-        {
-            mitarbeitersuche = string.Empty;
-        }
-        else
-        {
-            mitarbeitersuche = MitarbeiterName(ausgewaehlterMitarbeiter);
-        }
-
-        mitarbeitervorschlaegeSichtbar = false;
-    }
-
-    private List<Mitarbeiter> GefilterteMitarbeiter()
-    {
-        var gefilterteMitarbeiter = new List<Mitarbeiter>();
-
-        foreach (var mitarbeiter in mitarbeiterListe)
-        {
-            if (MitarbeiterService.PasstZurSuche(mitarbeiter, mitarbeitersuche))
-            {
-                gefilterteMitarbeiter.Add(mitarbeiter);
-            }
-        }
-
-        return gefilterteMitarbeiter;
-    }
-
-    private string MitarbeiterQualifikationen(Mitarbeiter mitarbeiter)
-    {
-        var namen = string.Empty;
-
-        foreach (var qualifikation in mitarbeiter.Qualifikationen)
-        {
-            if (namen != string.Empty)
-            {
-                namen += ", ";
-            }
-
-            namen += qualifikation.Name;
-        }
-
-        if (namen == string.Empty)
-        {
-            return "Keine Qualifikation";
-        }
-
-        return namen;
     }
 
     private string AuftragQualifikationen(Auftrag auftrag)
@@ -1110,11 +1146,11 @@
 
     private string AusgewaehlterMitarbeiterName()
     {
-        var mitarbeiter = mitarbeiterListe.Find(m => m.Id == mitarbeiterfilter);
+        var mitarbeiter = mitarbeiterListe.Find(m => m.Id == mitarbeiterId);
 
         if (mitarbeiter == null)
         {
-            return "Alle Mitarbeiter";
+            return "Kein Mitarbeiter zugeordnet";
         }
 
         return MitarbeiterName(mitarbeiter);
@@ -1124,7 +1160,7 @@
     {
         var stunden = ArbeitszeitService.BerechneMonatsstunden(
             arbeitszeiten,
-            mitarbeiterfilter,
+            mitarbeiterId,
             angezeigterMonat.Year,
             angezeigterMonat.Month);
 
@@ -1161,7 +1197,7 @@
         {
             if (datum.Date >= auftrag.Startdatum.Date
                 && datum.Date <= auftrag.Enddatum.Date
-                && AuftragService.PasstZuMitarbeiter(auftrag, mitarbeiterfilter))
+                && AuftragService.PasstZuMitarbeiter(auftrag, mitarbeiterId))
             {
                 passendeAuftraege.Add(auftrag);
             }
@@ -1177,7 +1213,7 @@
         foreach (var arbeitszeit in arbeitszeiten)
         {
             if (arbeitszeit.Datum.Date == datum.Date
-                && ArbeitszeitService.PasstZuMitarbeiter(arbeitszeit, mitarbeiterfilter))
+                && arbeitszeit.MitarbeiterId == mitarbeiterId)
             {
                 passendeArbeitszeiten.Add(arbeitszeit);
             }
@@ -1201,7 +1237,7 @@
         {
             if (datum.Date >= abwesenheit.Von.Date
                 && datum.Date <= abwesenheit.Bis.Date
-                && AbwesenheitService.PasstZuMitarbeiter(abwesenheit, mitarbeiterfilter))
+                && abwesenheit.MitarbeiterId == mitarbeiterId)
             {
                 passendeAbwesenheiten.Add(abwesenheit);
             }
@@ -1210,36 +1246,41 @@
         return passendeAbwesenheiten;
     }
 
-    private string AbwesenheitsKlasse(Abwesenheit abwesenheit, DateTime datum)
+    private void AbwesenheitsspurenAktualisieren()
     {
-        var letzterTagImMonat = DateTime.DaysInMonth(datum.Year, datum.Month);
-        var beginnt = IstAbwesenheitsSegmentStart(abwesenheit, datum);
-        var endet = datum.Date == abwesenheit.Bis.Date
-            || datum.DayOfWeek == DayOfWeek.Sunday
-            || datum.Day == letzterTagImMonat;
-
-        if (beginnt && endet)
-        {
-            return "absence-single";
-        }
-
-        if (beginnt)
-        {
-            return "absence-start";
-        }
-
-        if (endet)
-        {
-            return "absence-end";
-        }
-
-        return "absence-middle";
+        abwesenheitsspuren = AbwesenheitService.KalenderSpurenBestimmen(abwesenheiten);
     }
 
-    private bool IstAbwesenheitsSegmentStart(Abwesenheit abwesenheit, DateTime datum)
+    private int HoechsteAbwesenheitsspurAmTag(List<Abwesenheit> abwesenheitenAmTag)
     {
-        return datum.Date == abwesenheit.Von.Date
-            || datum.DayOfWeek == DayOfWeek.Monday
-            || datum.Day == 1;
+        var hoechsteSpur = -1;
+
+        foreach (var abwesenheit in abwesenheitenAmTag)
+        {
+            if (abwesenheitsspuren.TryGetValue(abwesenheit.Id, out var spur)
+                && spur > hoechsteSpur)
+            {
+                hoechsteSpur = spur;
+            }
+        }
+
+        return hoechsteSpur;
     }
+
+    private Abwesenheit? AbwesenheitInSpur(
+        List<Abwesenheit> abwesenheitenAmTag,
+        int gesuchteSpur)
+    {
+        foreach (var abwesenheit in abwesenheitenAmTag)
+        {
+            if (abwesenheitsspuren.TryGetValue(abwesenheit.Id, out var spur)
+                && spur == gesuchteSpur)
+            {
+                return abwesenheit;
+            }
+        }
+
+        return null;
+    }
+
 }

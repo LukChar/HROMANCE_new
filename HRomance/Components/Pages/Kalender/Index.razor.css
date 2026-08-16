@@ -1,4 +1,6 @@
 .kalender-page {
+    width: 100%;
+    min-width: 0;
     max-width: 1400px;
     margin: 0 auto;
 }
@@ -126,6 +128,7 @@
 }
 
 .calendar-card {
+    min-width: 0;
     padding: 16px;
     border: 1px solid #e2e5e9;
     border-radius: 8px;
@@ -168,13 +171,16 @@
 }
 
 .calendar-container {
-    overflow-x: auto;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .calendar-grid {
     display: grid;
-    min-width: 900px;
-    grid-template-columns: repeat(7, 1fr);
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     border-top: 1px solid #e2e5e9;
     border-left: 1px solid #e2e5e9;
 }
@@ -191,6 +197,7 @@
 }
 
 .day {
+    min-width: 0;
     min-height: 112px;
     padding: 6px;
     border-right: 1px solid #e2e5e9;
@@ -259,6 +266,7 @@
 .calendar-note {
     box-sizing: border-box;
     display: flex;
+    min-width: 0;
     gap: 3px;
     height: 24px;
     margin-bottom: 2px;
@@ -299,6 +307,11 @@
     background-color: #f5f3ff;
 }
 
+.absence-lane-placeholder {
+    height: 24px;
+    margin-bottom: 2px;
+}
+
 .more-entries {
     width: 100%;
     padding: 1px 4px;
@@ -317,35 +330,49 @@
 .absence-entry small {
     position: relative;
     z-index: 1;
-    width: max-content;
+    min-width: 0;
+    max-width: 100%;
+    text-overflow: ellipsis;
+    overflow: hidden;
     white-space: nowrap;
 }
 
+.absence-start,
+.absence-single {
+    overflow: visible;
+}
+
+.absence-start strong,
+.absence-single strong {
+    width: calc(var(--segment-days) * 100% + (var(--segment-days) - 1) * 13px);
+    max-width: none;
+}
+
 .absence-start {
-    margin-left: 4px;
-    margin-right: -9px;
+    margin-left: 0;
+    margin-right: -7px;
     border-right: none;
     border-radius: 4px 0 0 4px;
 }
 
 .absence-middle {
-    margin-right: -9px;
-    margin-left: -9px;
+    margin-right: -7px;
+    margin-left: -7px;
     border-right: none;
     border-left: none;
     border-radius: 0;
 }
 
 .absence-end {
-    margin-left: -9px;
-    margin-right: 4px;
+    margin-left: -7px;
+    margin-right: 0;
     border-left: none;
     border-radius: 0 4px 4px 0;
 }
 
 .absence-single {
-    margin-right: 4px;
-    margin-left: 4px;
+    margin-right: 0;
+    margin-left: 0;
     border-radius: 4px;
 }
 
@@ -598,9 +625,13 @@ textarea.form-input {
 }
 
 .entry-popup {
+    box-sizing: border-box;
+    display: flex;
     width: 100%;
     max-width: 620px;
+    max-height: 80vh;
     padding: 22px;
+    flex-direction: column;
     border: 1px solid #d7dbe0;
     border-radius: 8px;
     background-color: white;
@@ -629,6 +660,60 @@ textarea.form-input {
 .popup-details strong {
     margin-bottom: 3px;
     font-size: 16px;
+}
+
+.day-popup-list {
+    display: grid;
+    min-height: 0;
+    overflow-y: auto;
+    gap: 8px;
+}
+
+.day-popup-entry {
+    display: flex;
+    width: 100%;
+    min-height: auto;
+    height: auto;
+    padding: 10px 12px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    border: 1px solid #d7dbe0;
+    border-radius: 6px;
+    color: #30343b;
+    background-color: #f8f9fa;
+    font-size: 14px;
+    text-align: left;
+    line-height: 1.4;
+    white-space: normal;
+}
+
+.day-popup-entry.work-entry {
+    border-color: #bfdbfe;
+    background-color: #eff6ff;
+}
+
+.day-popup-entry.absence-entry {
+    height: auto;
+    min-height: auto;
+    margin: 0;
+    border-color: #ddd6fe;
+    background-color: #f5f3ff;
+}
+
+.day-popup-entry.open {
+    border-color: #fde68a;
+    background-color: #fef3c7;
+}
+
+.day-popup-entry.occupied {
+    border-color: #bbf7d0;
+    background-color: #dcfce7;
+}
+
+.day-popup-entry:hover {
+    color: #202124;
+    filter: brightness(0.98);
 }
 
 .popup-actions {
