@@ -55,27 +55,34 @@
                     {
                         var datum = new DateTime(angezeigterMonat.Year, angezeigterMonat.Month, tag);
                         var auftraegeAmTag = AuftraegeAmTag(datum);
-                        var anzahlSichtbar = Math.Min(3, auftraegeAmTag.Count);
+                        var kalenderzeilen = KalenderzeilenAmTag(datum);
+                        var anzahlSichtbar = kalenderzeilen.Count(a => a != null);
 
                         <div class="day @(datum.Date == DateTime.Today ? "today" : "")">
                             <div class="day-number">@tag</div>
 
-                            @for (var index = 0; index < anzahlSichtbar; index++)
+                            @foreach (var auftrag in kalenderzeilen)
                             {
-                                var auftrag = auftraegeAmTag[index];
-                                <div class="order-entry @AuftragsKlasse(auftrag, datum) @(IstBesetzt(auftrag) ? "occupied" : "open")"
-                                     @onclick="() => AuftragOeffnen(auftrag)">
-                                    @if (IstAuftragsSegmentStart(auftrag, datum))
-                                    {
-                                        <strong>@auftrag.Titel</strong>
-                                        <span>@(auftrag.Kunde?.Firmenname ?? "Kein Kunde")</span>
-                                    }
-                                </div>
+                                if (auftrag == null)
+                                {
+                                    <div class="order-placeholder"></div>
+                                }
+                                else
+                                {
+                                    <div class="order-entry @AuftragsKlasse(auftrag, datum) @(IstBesetzt(auftrag) ? "occupied" : "open")"
+                                         @onclick="() => AuftragOeffnen(auftrag)">
+                                        @if (IstAuftragsSegmentStart(auftrag, datum))
+                                        {
+                                            <strong>@auftrag.Titel</strong>
+                                            <span>@(auftrag.Kunde?.Firmenname ?? "Kein Kunde")</span>
+                                        }
+                                    </div>
+                                }
                             }
 
-                            @if (auftraegeAmTag.Count > 3)
+                            @if (auftraegeAmTag.Count > anzahlSichtbar)
                             {
-                                var weitere = auftraegeAmTag.Count - 3;
+                                var weitere = auftraegeAmTag.Count - anzahlSichtbar;
                                 <button type="button" class="more-button" @onclick="() => TagesPopupOeffnen(datum)">
                                     + @weitere @(weitere == 1 ? "weiterer" : "weitere")
                                 </button>
@@ -210,6 +217,85 @@
         }
 
         return passendeAuftraege;
+    }
+
+    private List<Auftrag?> KalenderzeilenAmTag(DateTime datum)
+    {
+        var tageSeitMontag = ((int)datum.DayOfWeek + 6) % 7;
+        var montag = datum.Date.AddDays(-tageSeitMontag);
+        var sonntag = montag.AddDays(6);
+        var wochenauftraege = new List<Auftrag>();
+
+        foreach (var auftrag in auftraege)
+        {
+            if (auftrag.Startdatum.Date <= sonntag && auftrag.Enddatum.Date >= montag)
+            {
+                wochenauftraege.Add(auftrag);
+            }
+        }
+
+        for (var i = 0; i < wochenauftraege.Count - 1; i++)
+        {
+            for (var j = 0; j < wochenauftraege.Count - i - 1; j++)
+            {
+                if (SollVorherStehen(wochenauftraege[j + 1], wochenauftraege[j]))
+                {
+                    var zwischenspeicher = wochenauftraege[j];
+                    wochenauftraege[j] = wochenauftraege[j + 1];
+                    wochenauftraege[j + 1] = zwischenspeicher;
+                }
+            }
+        }
+
+        var zeilen = new List<List<Auftrag>>();
+
+        foreach (var auftrag in wochenauftraege)
+        {
+            var zeileGefunden = false;
+
+            foreach (var zeile in zeilen)
+            {
+                var ueberschneidung = false;
+
+                foreach (var vorhandenerAuftrag in zeile)
+                {
+                    if (auftrag.Startdatum.Date <= vorhandenerAuftrag.Enddatum.Date
+                        && vorhandenerAuftrag.Startdatum.Date <= auftrag.Enddatum.Date)
+                    {
+                        ueberschneidung = true;
+                        break;
+                    }
+                }
+
+                if (!ueberschneidung)
+                {
+                    zeile.Add(auftrag);
+                    zeileGefunden = true;
+                    break;
+                }
+            }
+
+            if (!zeileGefunden)
+            {
+                zeilen.Add(new List<Auftrag> { auftrag });
+            }
+        }
+
+        var sichtbareZeilen = new List<Auftrag?> { null, null, null };
+
+        for (var index = 0; index < zeilen.Count && index < 3; index++)
+        {
+            foreach (var auftrag in zeilen[index])
+            {
+                if (datum.Date >= auftrag.Startdatum.Date && datum.Date <= auftrag.Enddatum.Date)
+                {
+                    sichtbareZeilen[index] = auftrag;
+                    break;
+                }
+            }
+        }
+
+        return sichtbareZeilen;
     }
 
     private bool SollVorherStehen(Auftrag erster, Auftrag zweiter)

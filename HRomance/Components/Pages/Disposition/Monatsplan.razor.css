@@ -145,6 +145,11 @@
     cursor: pointer;
 }
 
+.order-placeholder {
+    height: 44px;
+    margin-bottom: 3px;
+}
+
 .order-entry strong,
 .order-entry span {
     position: relative;
