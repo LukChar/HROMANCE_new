@@ -102,6 +102,41 @@ public class MatchingService
         return true;
     }
 
+    public async Task<List<MatchingZuweisung>> MoeglicheMitarbeiterAsync(
+        MatchingVorschlag vorschlag,
+        MatchingZuweisung zuBearbeiten)
+    {
+        var mitarbeiter = await _context.Mitarbeiter
+            .Include(m => m.Qualifikationen)
+            .ToListAsync();
+        var abwesenheiten = await _context.Abwesenheiten.ToListAsync();
+        var bestehendeAuftraege = await _context.Auftraege
+            .Include(a => a.Mitarbeiter)
+            .ToListAsync();
+        var andereZuweisungen = new List<MatchingZuweisung>();
+
+        foreach (var zuweisung in vorschlag.Zuweisungen)
+        {
+            if (zuweisung != zuBearbeiten)
+            {
+                andereZuweisungen.Add(zuweisung);
+            }
+        }
+
+        var startdatum = zuBearbeiten.Auftrag.Startdatum.Date;
+        var enddatum = zuBearbeiten.Auftrag.Enddatum.Date;
+
+        return PassendeKandidaten(
+            zuBearbeiten.Auftrag,
+            mitarbeiter,
+            abwesenheiten,
+            bestehendeAuftraege,
+            andereZuweisungen,
+            startdatum,
+            enddatum,
+            vorschlag.Nummer);
+    }
+
     public MatchingVorschlag? VorschlagAuswaehlen(
         List<MatchingVorschlag> vorschlaege,
         int nummer)

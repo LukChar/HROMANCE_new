@@ -1,5 +1,29 @@
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
 html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    min-width: 0;
+}
+
+body {
+    overflow-x: hidden;
+}
+
+img,
+svg {
+    max-width: 100%;
+    height: auto;
+}
+
+input,
+select,
+textarea,
+button {
+    max-width: 100%;
 }
 
 a, .btn-link {
@@ -87,4 +111,14 @@ h1:focus {
 
 .btn-delete:hover {
     background-color: #b91c1c;
+}
+
+@media (max-width: 600px) {
+    h1 {
+        font-size: 1.7rem;
+    }
+
+    .content {
+        padding-top: 0.8rem;
+    }
 }

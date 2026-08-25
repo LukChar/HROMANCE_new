@@ -285,8 +285,41 @@
         display: block;
     }
 
-    .list-button {
-        display: inline-block;
+    .header-actions {
+        flex-wrap: wrap;
         margin-top: 15px;
+    }
+
+    .header-actions a {
+        flex: 1 1 130px;
+        text-align: center;
+    }
+
+    .calendar-card {
+        padding: 12px;
+    }
+
+    .month-navigation {
+        gap: 8px;
+    }
+
+    .month-navigation h2 {
+        min-width: 0;
+        flex: 1;
+        font-size: 17px;
+    }
+
+    .day-popup-background {
+        align-items: flex-start;
+        padding: 10px;
+    }
+
+    .day-popup {
+        max-height: calc(100vh - 20px);
+        padding: 16px;
+    }
+
+    .day-popup-header {
+        gap: 6px;
     }
 }

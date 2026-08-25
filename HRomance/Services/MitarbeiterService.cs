@@ -13,7 +13,6 @@ namespace HRomance.Services
             _context = context;
         }
 
-        // Alle Mitarbeiter laden
         public async Task<List<Mitarbeiter>> GetAllAsync()
         {
             return await _context.Mitarbeiter
@@ -21,7 +20,6 @@ namespace HRomance.Services
                 .ToListAsync();
         }
 
-        // Mitarbeiter anhand der ID laden
         public async Task<Mitarbeiter?> GetByIdAsync(int id)
         {
             return await _context.Mitarbeiter
@@ -88,14 +86,12 @@ namespace HRomance.Services
             };
         }
 
-        // Neuen Mitarbeiter hinzufügen
         public async Task AddAsync(Mitarbeiter mitarbeiter)
         {
             _context.Mitarbeiter.Add(mitarbeiter);
             await _context.SaveChangesAsync();
         }
 
-        // Mitarbeiter bearbeiten
         public async Task UpdateAsync(Mitarbeiter mitarbeiter)
         {
             var vorhandenerMitarbeiter = await _context.Mitarbeiter
@@ -125,7 +121,6 @@ namespace HRomance.Services
             }
         }
 
-        // Mitarbeiter löschen
         public async Task DeleteAsync(int id)
         {
             var mitarbeiter = await _context.Mitarbeiter.FindAsync(id);

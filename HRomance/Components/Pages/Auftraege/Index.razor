@@ -56,6 +56,7 @@
                 <input id="auftragssuche"
                        class="filter-input"
                        type="text"
+                       placeholder="Titel, Einsatzort oder Kunde suchen..."
                        value="@suchtext"
                        @oninput="SucheGeaendert" />
             </div>
@@ -318,6 +319,9 @@
                 auftrag.Titel.Contains(suchtext, StringComparison.OrdinalIgnoreCase) ||
                 auftrag.Einsatzort.Contains(suchtext, StringComparison.OrdinalIgnoreCase) ||
                 (auftrag.Kunde?.Firmenname.Contains(
+                    suchtext,
+                    StringComparison.OrdinalIgnoreCase) == true) ||
+                (auftrag.Kunde?.Ansprechpartner.Contains(
                     suchtext,
                     StringComparison.OrdinalIgnoreCase) == true);
 

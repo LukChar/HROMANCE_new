@@ -18,6 +18,7 @@ namespace HRomance.Services
             return await _context.Auftraege
                 .Include(a => a.Kunde)
                 .Include(a => a.Qualifikationen)
+                .Include(a => a.Materialliste)
                 .Include(a => a.Mitarbeiter)
                     .ThenInclude(m => m.Qualifikationen)
                 .ToListAsync();
@@ -28,6 +29,7 @@ namespace HRomance.Services
             return await _context.Auftraege
                 .Include(a => a.Kunde)
                 .Include(a => a.Qualifikationen)
+                .Include(a => a.Materialliste)
                 .Include(a => a.Mitarbeiter)
                     .ThenInclude(m => m.Qualifikationen)
                 .FirstOrDefaultAsync(a => a.Id == id);
@@ -38,6 +40,7 @@ namespace HRomance.Services
             return await _context.Auftraege
                 .Include(a => a.Kunde)
                 .Include(a => a.Qualifikationen)
+                .Include(a => a.Materialliste)
                 .Include(a => a.Mitarbeiter)
                     .ThenInclude(m => m.Qualifikationen)
                 .Where(a => a.Mitarbeiter.Any(m => m.Id == mitarbeiterId))
@@ -89,6 +92,77 @@ namespace HRomance.Services
                 _context.Auftraege.Remove(auftrag);
                 await _context.SaveChangesAsync();
             }
+        }
+
+        public async Task MaterialHinzufuegenAsync(int auftragId, string bezeichnung, int anzahl)
+        {
+            if (string.IsNullOrWhiteSpace(bezeichnung) || anzahl < 1)
+            {
+                return;
+            }
+
+            var auftrag = await _context.Auftraege.FindAsync(auftragId);
+
+            if (auftrag == null)
+            {
+                return;
+            }
+
+            _context.Materialeintraege.Add(new Materialeintrag
+            {
+                AuftragId = auftragId,
+                Bezeichnung = bezeichnung.Trim(),
+                Anzahl = anzahl
+            });
+
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task MaterialLoeschenAsync(int auftragId, int materialId)
+        {
+            var material = await _context.Materialeintraege.FirstOrDefaultAsync(m =>
+                m.Id == materialId && m.AuftragId == auftragId);
+
+            if (material != null)
+            {
+                _context.Materialeintraege.Remove(material);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task<bool> MaterialStatusAendernAsync(
+            int auftragId,
+            int materialId,
+            bool erledigt,
+            int? mitarbeiterId)
+        {
+            var auftrag = await _context.Auftraege
+                .Include(a => a.Mitarbeiter)
+                .Include(a => a.Materialliste)
+                .FirstOrDefaultAsync(a => a.Id == auftragId);
+
+            if (auftrag == null)
+            {
+                return false;
+            }
+
+            if (mitarbeiterId != null
+                && !auftrag.Mitarbeiter.Any(m => m.Id == mitarbeiterId.Value))
+            {
+                return false;
+            }
+
+            foreach (var material in auftrag.Materialliste)
+            {
+                if (material.Id == materialId)
+                {
+                    material.Erledigt = erledigt;
+                    await _context.SaveChangesAsync();
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         public async Task MitarbeiterZuweisenAsync(int auftragId, List<int> mitarbeiterIds)

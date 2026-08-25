@@ -1,4 +1,4 @@
-.disposition-page {
+.day-page {
     max-width: 1200px;
     margin: 0 auto;
 }
@@ -28,7 +28,7 @@
 }
 
 .view-switch a,
-.week-navigation button {
+.day-navigation button {
     padding: 8px 14px;
     border: 1px solid #cfd4da;
     border-radius: 6px;
@@ -44,7 +44,7 @@
     background-color: #2563eb;
 }
 
-.week-navigation {
+.day-navigation {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -52,51 +52,30 @@
     margin-bottom: 18px;
 }
 
-.week-navigation strong {
-    min-width: 190px;
+.day-navigation strong {
+    min-width: 230px;
     color: #30343b;
     text-align: center;
 }
 
-.week-plan {
+.day-plan {
+    padding: 18px;
     border: 1px solid #e2e5e9;
     border-radius: 8px;
     background-color: white;
 }
 
-.day-section {
-    padding: 16px 18px;
-    border-bottom: 1px solid #e2e5e9;
-}
-
-.day-section:last-child {
-    border-bottom: none;
-}
-
-.day-section h2 {
-    margin: 0 0 11px;
-    color: #30343b;
-    font-size: 17px;
-    font-weight: 600;
-}
-
-.empty-message {
-    margin: 0;
-    color: #8a9099;
-    font-size: 14px;
-}
-
 .order-list {
     display: grid;
-    gap: 8px;
+    gap: 9px;
 }
 
 .order-card {
     display: grid;
-    grid-template-columns: minmax(180px, 1.4fr) minmax(140px, 1fr) minmax(160px, 1fr) minmax(150px, 1fr);
+    grid-template-columns: minmax(180px, 1.3fr) minmax(150px, 1fr) minmax(140px, 1fr) minmax(160px, 1fr) minmax(170px, 1.2fr);
     gap: 12px;
     width: 100%;
-    padding: 10px 12px;
+    padding: 12px;
     border: 1px solid #e2e5e9;
     border-radius: 6px;
     color: #30343b;
@@ -110,16 +89,30 @@
     background-color: #f1f3f5;
 }
 
-@media (max-width: 760px) {
+.occupied {
+    color: #166534;
+}
+
+.open {
+    color: #991b1b;
+}
+
+.empty-message {
+    margin: 0;
+    color: #8a9099;
+    font-size: 14px;
+}
+
+@media (max-width: 850px) {
     .page-header,
-    .week-navigation {
+    .day-navigation {
         align-items: flex-start;
         flex-wrap: wrap;
     }
 
     .order-card {
         grid-template-columns: 1fr;
-        gap: 3px;
+        gap: 4px;
     }
 
     .view-switch {
@@ -132,8 +125,12 @@
         text-align: center;
     }
 
-    .week-navigation strong {
+    .day-navigation strong {
         min-width: 0;
         flex: 1;
+    }
+
+    .day-plan {
+        padding: 12px;
     }
 }

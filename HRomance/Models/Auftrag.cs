@@ -19,6 +19,8 @@ public class Auftrag
 
     public List<Mitarbeiter> Mitarbeiter { get; set; } = new();
 
+    public List<Materialeintrag> Materialliste { get; set; } = new();
+
     public DateTime Startdatum { get; set; }
 
     public DateTime Enddatum { get; set; }

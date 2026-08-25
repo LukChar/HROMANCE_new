@@ -64,6 +64,16 @@
             <option value="Neueste">Neueste zuerst</option>
             <option value="Älteste">Älteste zuerst</option>
         </select>
+
+        <div class="date-filter">
+            <label for="filter-von">Von</label>
+            <InputDate id="filter-von" @bind-Value="filterVon" />
+        </div>
+
+        <div class="date-filter">
+            <label for="filter-bis">Bis</label>
+            <InputDate id="filter-bis" @bind-Value="filterBis" />
+        </div>
     </div>
 
     <div class="applications-list">
@@ -217,6 +227,8 @@
     private string artfilter = "Alle";
     private string statusfilter = "Alle";
     private string sortierung = "Neueste";
+    private DateTime? filterVon;
+    private DateTime? filterBis;
     private Abwesenheit? bestaetigungsAntrag;
     private string neuerStatus = string.Empty;
     private int mitarbeiterId;
@@ -283,7 +295,9 @@
             suchtext,
             artfilter,
             statusfilter,
-            sortierung == "Neueste");
+            sortierung == "Neueste",
+            filterVon,
+            filterBis);
     }
 
     private void SucheGeaendert(ChangeEventArgs e)

@@ -95,7 +95,9 @@ public class AbwesenheitService
         string suche,
         string art,
         string status,
-        bool neuesteZuerst)
+        bool neuesteZuerst,
+        DateTime? filterVon = null,
+        DateTime? filterBis = null)
     {
         var ergebnis = new List<Abwesenheit>();
 
@@ -115,8 +117,10 @@ public class AbwesenheitService
 
             var passtZurArt = art == "Alle" || antrag.Typ == art;
             var passtZumStatus = status == "Alle" || antrag.Status == status;
+            var passtZuVon = filterVon == null || antrag.Bis.Date >= filterVon.Value.Date;
+            var passtZuBis = filterBis == null || antrag.Von.Date <= filterBis.Value.Date;
 
-            if (passtZurSuche && passtZurArt && passtZumStatus)
+            if (passtZurSuche && passtZurArt && passtZumStatus && passtZuVon && passtZuBis)
             {
                 ergebnis.Add(antrag);
             }

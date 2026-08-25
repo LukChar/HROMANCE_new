@@ -21,6 +21,8 @@ namespace HRomance.Data
 
         public DbSet<Abwesenheit> Abwesenheiten { get; set; }
 
+        public DbSet<Materialeintrag> Materialeintraege { get; set; }
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);

@@ -10,6 +10,7 @@
 @using Microsoft.AspNetCore.Identity
 
 @inject MitarbeiterService MitarbeiterService
+@inject KundeService KundeService
 @inject AuftragService AuftragService
 @inject ArbeitszeitService ArbeitszeitService
 @inject AbwesenheitService AbwesenheitService
@@ -23,49 +24,53 @@
         <p>Übersicht über meine Einsätze, Anträge und Arbeitszeiten</p>
     </div>
 
-    <section class="dashboard-section working-time-overview">
-        <div class="section-header">
-            <h2>Meine Arbeitszeit</h2>
-        </div>
+    <div class="personal-dashboard-grid">
+        <section class="dashboard-section working-time-overview">
+            <div class="section-header">
+                <h2>Meine Arbeitszeit</h2>
+            </div>
 
-        <div class="working-time-content">
-            @if (ausgewaehlterMitarbeiterId != 0)
-            {
-                <div class="working-time-value">
-                    <strong>@AusgewaehlterMitarbeiterName()</strong>
-                    <span>@AktuellerMonat()</span>
-                    <div class="working-time-row">
-                        <span>Arbeitszeit</span>
-                        <strong>@StundenAnzeigen(MonatsIst()) h</strong>
-                    </div>
-                    @if (MonatsAbwesenheitstage() > 0)
-                    {
-                        <div class="working-time-row">
-                            <span>Abwesenheit</span>
-                            <strong>@AbwesenheitstageAnzeigen()</strong>
+            <div class="working-time-content">
+                @if (ausgewaehlterMitarbeiterId != 0)
+                {
+                    <div class="working-time-value">
+                        <strong>@AusgewaehlterMitarbeiterName()</strong>
+                        <div class="month-navigation">
+                            <button type="button" @onclick="VorherigerMonat" aria-label="Vorheriger Monat">‹</button>
+                            <span>@AusgewaehlterMonatAnzeigen()</span>
+                            <button type="button" @onclick="NaechsterMonat" disabled="@IstAktuellerMonat()" aria-label="Nächster Monat">›</button>
                         </div>
-                    }
-                    <div class="working-time-row">
-                        <span>Soll</span>
-                        <strong>@StundenAnzeigen(MonatsSoll()) h</strong>
+                        <div class="working-time-row">
+                            <span>Arbeitszeit</span>
+                            <strong>@StundenAnzeigen(MonatsIst()) h</strong>
+                        </div>
+                        @if (MonatsAbwesenheitstage() > 0)
+                        {
+                            <div class="working-time-row">
+                                <span>Abwesenheit</span>
+                                <strong>@AbwesenheitstageAnzeigen()</strong>
+                            </div>
+                        }
+                        <div class="working-time-row">
+                            <span>Soll</span>
+                            <strong>@StundenAnzeigen(MonatsSoll()) h</strong>
+                        </div>
+                        <div class="working-time-row @SaldoKlasse()">
+                            <span>Saldo</span>
+                            <strong>@SaldoAnzeigen() h</strong>
+                        </div>
+                        <button type="button" class="add-working-time-button" @onclick="ArbeitszeitPopupOeffnen">
+                            Stunden eintragen
+                        </button>
                     </div>
-                    <div class="working-time-row @SaldoKlasse()">
-                        <span>Saldo</span>
-                        <strong>@SaldoAnzeigen() h</strong>
-                    </div>
-                    <button type="button" class="add-working-time-button" @onclick="ArbeitszeitPopupOeffnen">
-                        Stunden eintragen
-                    </button>
-                </div>
-            }
-            else
-            {
-                <p class="empty-message">Dem Benutzer ist kein Mitarbeiter zugeordnet.</p>
-            }
-        </div>
-    </section>
+                }
+                else
+                {
+                    <p class="empty-message">Dem Benutzer ist kein Mitarbeiter zugeordnet.</p>
+                }
+            </div>
+        </section>
 
-    <div class="personal-grid">
             <section class="dashboard-section">
                 <div class="section-header">
                     <h2>Meine nächsten Einsätze</h2>
@@ -123,6 +128,113 @@
                 }
             </section>
     </div>
+
+    @if (istManager)
+    {
+        <section class="management-overview">
+            <div class="management-heading">
+                <h2>Verwaltungsübersicht</h2>
+                <p>Mitarbeiter, Kunden und offene Aufträge</p>
+            </div>
+
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <span>Mitarbeiter</span>
+                    <strong>@alleMitarbeiter.Count</strong>
+                    <small>Gesamt</small>
+                </div>
+                <div class="summary-card">
+                    <span>Verfügbare Mitarbeiter</span>
+                    <strong>@verfuegbareMitarbeiter.Count</strong>
+                    <small>Aktuell verfügbar</small>
+                </div>
+                <div class="summary-card">
+                    <span>Offene Aufträge</span>
+                    <strong>@offeneAuftraege.Count</strong>
+                    <small>Noch nicht besetzt</small>
+                </div>
+                <div class="summary-card">
+                    <span>Kunden</span>
+                    <strong>@anzahlKunden</strong>
+                    <small>Gesamt</small>
+                </div>
+            </div>
+
+            <div class="management-grid">
+                <section class="dashboard-section">
+                    <div class="section-header">
+                        <h2>Offene Aufträge</h2>
+                    </div>
+
+                    @if (offeneAuftraege.Count == 0)
+                    {
+                        <p class="empty-message">Zurzeit sind keine offenen Aufträge vorhanden.</p>
+                    }
+                    else
+                    {
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Auftrag</th>
+                                        <th>Kunde</th>
+                                        <th>Einsatzort</th>
+                                        <th>Zeitraum</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var auftrag in offeneAuftraege)
+                                    {
+                                        <tr>
+                                            <td>@auftrag.Titel</td>
+                                            <td>@auftrag.Kunde?.Firmenname</td>
+                                            <td>@auftrag.Einsatzort</td>
+                                            <td>@auftrag.Startdatum.ToString("dd.MM.yyyy") - @auftrag.Enddatum.ToString("dd.MM.yyyy")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </section>
+
+                <section class="dashboard-section">
+                    <div class="section-header">
+                        <h2>Verfügbare Mitarbeiter</h2>
+                    </div>
+
+                    @if (verfuegbareMitarbeiter.Count == 0)
+                    {
+                        <p class="empty-message">Zurzeit sind keine Mitarbeiter verfügbar.</p>
+                    }
+                    else
+                    {
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Personalnummer</th>
+                                        <th>Qualifikationen</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var person in verfuegbareMitarbeiter)
+                                    {
+                                        <tr>
+                                            <td>@MitarbeiterName(person)</td>
+                                            <td>@person.Personalnummer</td>
+                                            <td>@MitarbeiterQualifikationen(person)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </section>
+            </div>
+        </section>
+    }
 </div>
 
 @if (ausgewaehlterAuftrag != null)
@@ -197,6 +309,11 @@
     private List<Auftrag> auftraege = new();
     private List<Arbeitszeit> arbeitszeiten = new();
     private List<Abwesenheit> abwesenheiten = new();
+    private List<Mitarbeiter> alleMitarbeiter = new();
+    private List<Mitarbeiter> verfuegbareMitarbeiter = new();
+    private List<Auftrag> offeneAuftraege = new();
+    private int anzahlKunden;
+    private bool istManager;
     private int ausgewaehlterMitarbeiterId;
     private Auftrag? ausgewaehlterAuftrag;
     private bool arbeitszeitPopupSichtbar;
@@ -206,10 +323,19 @@
     private string endeText = string.Empty;
     private string beginnFehler = string.Empty;
     private string endeFehler = string.Empty;
+    private DateTime ausgewaehlterMonat = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
 
     protected override async Task OnInitializedAsync()
     {
         var authenticationState = await AuthenticationStateTask;
+        istManager = authenticationState.User.IsInRole("Admin")
+            || authenticationState.User.IsInRole("Disponent");
+
+        if (istManager)
+        {
+            await VerwaltungsdatenLaden();
+        }
+
         var user = await UserManager.GetUserAsync(authenticationState.User);
         ausgewaehlterMitarbeiterId = user?.MitarbeiterId ?? 0;
 
@@ -228,6 +354,30 @@
         auftraege = await AuftragService.GetByMitarbeiterAsync(ausgewaehlterMitarbeiterId);
         arbeitszeiten = await ArbeitszeitService.GetByMitarbeiterAsync(ausgewaehlterMitarbeiterId);
         abwesenheiten = await AbwesenheitService.GetByMitarbeiterAsync(ausgewaehlterMitarbeiterId);
+    }
+
+    private async Task VerwaltungsdatenLaden()
+    {
+        alleMitarbeiter = await MitarbeiterService.GetAllAsync();
+        var kunden = await KundeService.GetAllAsync();
+        var alleAuftraege = await AuftragService.GetAllAsync();
+        anzahlKunden = kunden.Count;
+
+        foreach (var person in alleMitarbeiter)
+        {
+            if (person.Verfuegbar)
+            {
+                verfuegbareMitarbeiter.Add(person);
+            }
+        }
+
+        foreach (var auftrag in alleAuftraege)
+        {
+            if (auftrag.Mitarbeiter.Count == 0)
+            {
+                offeneAuftraege.Add(auftrag);
+            }
+        }
     }
 
     [CascadingParameter]
@@ -304,8 +454,8 @@
             arbeitszeiten,
             abwesenheiten,
             person.Id,
-            DateTime.Today.Year,
-            DateTime.Today.Month,
+            ausgewaehlterMonat.Year,
+            ausgewaehlterMonat.Month,
             person.Wochenarbeitszeit,
             DateTime.Today);
     }
@@ -381,10 +531,29 @@
         return MitarbeiterName(person);
     }
 
-    private string AktuellerMonat()
+    private string AusgewaehlterMonatAnzeigen()
     {
         var kultur = CultureInfo.GetCultureInfo("de-DE");
-        return DateTime.Today.ToString("MMMM yyyy", kultur);
+        return ausgewaehlterMonat.ToString("MMMM yyyy", kultur);
+    }
+
+    private void VorherigerMonat()
+    {
+        ausgewaehlterMonat = ausgewaehlterMonat.AddMonths(-1);
+    }
+
+    private void NaechsterMonat()
+    {
+        if (!IstAktuellerMonat())
+        {
+            ausgewaehlterMonat = ausgewaehlterMonat.AddMonths(1);
+        }
+    }
+
+    private bool IstAktuellerMonat()
+    {
+        return ausgewaehlterMonat.Year == DateTime.Today.Year
+            && ausgewaehlterMonat.Month == DateTime.Today.Month;
     }
 
     private void AuftragOeffnen(Auftrag auftrag)
@@ -479,6 +648,23 @@
         }
 
         return person.Vorname + " " + person.Nachname;
+    }
+
+    private string MitarbeiterQualifikationen(Mitarbeiter person)
+    {
+        var namen = string.Empty;
+
+        foreach (var qualifikation in person.Qualifikationen)
+        {
+            if (namen != string.Empty)
+            {
+                namen += ", ";
+            }
+
+            namen += qualifikation.Name;
+        }
+
+        return namen == string.Empty ? "Keine" : namen;
     }
 
 }

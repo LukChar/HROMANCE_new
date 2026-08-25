@@ -1,10 +1,14 @@
 @using HRomance.Models
 @using HRomance.Services
+@using HRomance.Data
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Components.Authorization
 
 @inject AuftragService AuftragService
 @inject KundeService KundeService
 @inject QualifikationService QualifikationService
 @inject MitarbeiterService MitarbeiterService
+@inject UserManager<ApplicationUser> UserManager
 
 <div class="popup-background" @onclick="Abbrechen">
     <div class="order-popup" @onclick:stopPropagation="true">
@@ -20,6 +24,49 @@
                 <span>Qualifikationen: @QualifikationsNamen(aktuellerAuftrag)</span>
                 <span>Status: @(aktuellerAuftrag.Mitarbeiter.Count > 0 ? "Besetzt" : "Offen")</span>
                 <span>Mitarbeiter: @MitarbeiterNamen(aktuellerAuftrag)</span>
+            </div>
+
+            <div class="material-area">
+                <h3>Materialcheckliste</h3>
+
+                @if (aktuellerAuftrag.Materialliste.Count == 0)
+                {
+                    <p>Keine Materialien eingetragen.</p>
+                }
+                else
+                {
+                    <div class="material-list">
+                        @foreach (var material in aktuellerAuftrag.Materialliste)
+                        {
+                            <div class="material-item">
+                                <label>
+                                    <input type="checkbox"
+                                           checked="@material.Erledigt"
+                                           @onchange="() => MaterialWechseln(material)" />
+                                    <span class="@(material.Erledigt ? "material-done" : "")">
+                                        @material.Anzahl × @material.Bezeichnung
+                                    </span>
+                                </label>
+
+                                @if (!NurLesen)
+                                {
+                                    <button type="button" @onclick="() => MaterialLoeschen(material.Id)">Entfernen</button>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <span class="material-progress">@ErledigteMaterialien() von @aktuellerAuftrag.Materialliste.Count erledigt</span>
+                }
+
+                @if (!NurLesen)
+                {
+                    <div class="material-add">
+                        <input type="text" placeholder="Material" @bind="neuesMaterial" @bind:event="oninput" />
+                        <input type="number" min="1" @bind="neueMaterialAnzahl" />
+                        <button type="button" @onclick="MaterialHinzufuegen">Hinzufügen</button>
+                    </div>
+                }
             </div>
 
             @if (!NurLesen && aktuellerAuftrag.Mitarbeiter.Count > 0)
@@ -200,6 +247,12 @@
     private string verfuegbarkeitsfilter = "Alle";
     private string formularFehler = string.Empty;
     private bool initialisiert;
+    private int angemeldeterMitarbeiterId;
+    private string neuesMaterial = string.Empty;
+    private int neueMaterialAnzahl = 1;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -209,6 +262,9 @@
         }
 
         initialisiert = true;
+        var authenticationState = await AuthenticationStateTask;
+        var user = await UserManager.GetUserAsync(authenticationState.User);
+        angemeldeterMitarbeiterId = user?.MitarbeiterId ?? 0;
         kunden = await KundeService.GetAllAsync();
         qualifikationen = await QualifikationService.GetAllAsync();
         mitarbeiter = await MitarbeiterService.GetAllAsync();
@@ -367,6 +423,77 @@
         await AuftragService.DeleteAsync(aktuellerAuftrag.Id);
         await Aktualisiert.InvokeAsync();
         await Geschlossen.InvokeAsync();
+    }
+
+    private async Task MaterialHinzufuegen()
+    {
+        if (aktuellerAuftrag == null)
+        {
+            return;
+        }
+
+        await AuftragService.MaterialHinzufuegenAsync(
+            aktuellerAuftrag.Id,
+            neuesMaterial,
+            neueMaterialAnzahl);
+        aktuellerAuftrag = await AuftragService.GetByIdAsync(aktuellerAuftrag.Id);
+        neuesMaterial = string.Empty;
+        neueMaterialAnzahl = 1;
+        await Aktualisiert.InvokeAsync();
+    }
+
+    private async Task MaterialLoeschen(int materialId)
+    {
+        if (aktuellerAuftrag == null)
+        {
+            return;
+        }
+
+        await AuftragService.MaterialLoeschenAsync(aktuellerAuftrag.Id, materialId);
+        aktuellerAuftrag = await AuftragService.GetByIdAsync(aktuellerAuftrag.Id);
+        await Aktualisiert.InvokeAsync();
+    }
+
+    private async Task MaterialWechseln(Materialeintrag material)
+    {
+        if (aktuellerAuftrag == null)
+        {
+            return;
+        }
+
+        int? mitarbeiterId = NurLesen ? angemeldeterMitarbeiterId : null;
+        var erledigt = !material.Erledigt;
+        var gespeichert = await AuftragService.MaterialStatusAendernAsync(
+            aktuellerAuftrag.Id,
+            material.Id,
+            erledigt,
+            mitarbeiterId);
+
+        if (gespeichert)
+        {
+            material.Erledigt = erledigt;
+            await Aktualisiert.InvokeAsync();
+        }
+    }
+
+    private int ErledigteMaterialien()
+    {
+        if (aktuellerAuftrag == null)
+        {
+            return 0;
+        }
+
+        var anzahl = 0;
+
+        foreach (var material in aktuellerAuftrag.Materialliste)
+        {
+            if (material.Erledigt)
+            {
+                anzahl++;
+            }
+        }
+
+        return anzahl;
     }
 
     private void ZurueckZuDetails()

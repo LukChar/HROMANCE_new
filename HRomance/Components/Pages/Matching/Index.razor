@@ -69,7 +69,13 @@
 
                                     @if (zuweisung.Mitarbeiter == null)
                                     {
-                                        <div class="no-match">Kein passender Mitarbeiter verfügbar</div>
+                                        <div class="no-match">
+                                            <span>Kein passender Mitarbeiter verfügbar</span>
+                                            <button type="button" class="change-button"
+                                                    @onclick="() => MitarbeiterAendernOeffnen(aktuellerVorschlag, zuweisung)">
+                                                Mitarbeiter wählen
+                                            </button>
+                                        </div>
                                     }
                                     else
                                     {
@@ -84,6 +90,10 @@
                                                 <span>@zuweisung.PassendeQualifikationen/@zuweisung.BenoetigteQualifikationen Qualifikationen passend</span>
                                             }
                                             <span>@EinsatzText(zuweisung.BestehendeEinsaetze)</span>
+                                            <button type="button" class="change-button"
+                                                    @onclick="() => MitarbeiterAendernOeffnen(aktuellerVorschlag, zuweisung)">
+                                                Ändern
+                                            </button>
                                         </div>
                                     }
                                 </article>
@@ -121,6 +131,51 @@
     </div>
 }
 
+@if (zuweisungZumAendern != null)
+{
+    <div class="popup-background" @onclick="MitarbeiterAendernSchliessen">
+        <div class="employee-popup" @onclick:stopPropagation="true">
+            <h2>Mitarbeiter auswählen</h2>
+            <p>@zuweisungZumAendern.Auftrag.Titel</p>
+
+            @if (alternativenWerdenGeladen)
+            {
+                <p>Verfügbare Mitarbeiter werden geladen...</p>
+            }
+            else if (mitarbeiterAlternativen.Count == 0)
+            {
+                <p>Für diesen Auftrag ist kein passender Mitarbeiter verfügbar.</p>
+            }
+            else
+            {
+                <div class="employee-options">
+                    @foreach (var alternative in mitarbeiterAlternativen)
+                    {
+                        <button type="button" @onclick="() => MitarbeiterAuswaehlen(alternative)">
+                            <strong>@MitarbeiterName(alternative.Mitarbeiter!)</strong>
+                            @if (alternative.BenoetigteQualifikationen == 0)
+                            {
+                                <span>Keine Qualifikation erforderlich</span>
+                            }
+                            else
+                            {
+                                <span>@alternative.PassendeQualifikationen/@alternative.BenoetigteQualifikationen Qualifikationen passend</span>
+                            }
+                            <span>@EinsatzText(alternative.BestehendeEinsaetze)</span>
+                        </button>
+                    }
+                </div>
+            }
+
+            <div class="popup-actions">
+                <button type="button" class="secondary-button" @onclick="MitarbeiterAendernSchliessen">
+                    Abbrechen
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private List<MatchingVorschlag> vorschlaege = new();
     private MatchingVorschlag? ausgewaehlterVorschlag;
@@ -129,6 +184,9 @@
     private bool wirdBerechnet;
     private bool wirdUebernommen;
     private int ausgewaehlteVorschlagsnummer = 1;
+    private MatchingZuweisung? zuweisungZumAendern;
+    private List<MatchingZuweisung> mitarbeiterAlternativen = new();
+    private bool alternativenWerdenGeladen;
 
     private async Task VorschlaegeErstellen()
     {
@@ -235,6 +293,50 @@
     private void VorschlagWechseln(int nummer)
     {
         ausgewaehlteVorschlagsnummer = nummer;
+        MitarbeiterAendernSchliessen();
+    }
+
+    private async Task MitarbeiterAendernOeffnen(
+        MatchingVorschlag vorschlag,
+        MatchingZuweisung zuweisung)
+    {
+        zuweisungZumAendern = zuweisung;
+        mitarbeiterAlternativen = new List<MatchingZuweisung>();
+        alternativenWerdenGeladen = true;
+
+        try
+        {
+            mitarbeiterAlternativen = await MatchingService.MoeglicheMitarbeiterAsync(vorschlag, zuweisung);
+        }
+        finally
+        {
+            alternativenWerdenGeladen = false;
+        }
+    }
+
+    private void MitarbeiterAuswaehlen(MatchingZuweisung alternative)
+    {
+        if (zuweisungZumAendern == null)
+        {
+            return;
+        }
+
+        zuweisungZumAendern.Mitarbeiter = alternative.Mitarbeiter;
+        zuweisungZumAendern.PassendeQualifikationen = alternative.PassendeQualifikationen;
+        zuweisungZumAendern.BenoetigteQualifikationen = alternative.BenoetigteQualifikationen;
+        zuweisungZumAendern.BestehendeEinsaetze = alternative.BestehendeEinsaetze;
+        MitarbeiterAendernSchliessen();
+    }
+
+    private void MitarbeiterAendernSchliessen()
+    {
+        if (alternativenWerdenGeladen)
+        {
+            return;
+        }
+
+        zuweisungZumAendern = null;
+        mitarbeiterAlternativen = new List<MatchingZuweisung>();
     }
 
     private string Vorschlagsbeschreibung(int nummer)

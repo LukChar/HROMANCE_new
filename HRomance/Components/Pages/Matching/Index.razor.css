@@ -137,8 +137,23 @@ button:disabled {
 }
 
 .no-match {
+    display: flex;
     align-self: center;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
     color: #b91c1c;
+}
+
+.change-button {
+    align-self: flex-start;
+    margin-top: 4px;
+    padding: 5px 9px;
+    border: 1px solid #cfd4da;
+    border-radius: 5px;
+    color: #30343b;
+    background-color: white;
+    font-size: 12px;
 }
 
 .popup-background {
@@ -158,6 +173,53 @@ button:disabled {
     padding: 22px;
     border-radius: 8px;
     background-color: white;
+}
+
+.employee-popup {
+    width: 100%;
+    max-width: 520px;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 22px;
+    border-radius: 8px;
+    background-color: white;
+}
+
+.employee-popup h2 {
+    margin: 0;
+}
+
+.employee-popup > p {
+    margin: 6px 0 16px;
+    color: #6b7280;
+}
+
+.employee-options {
+    display: grid;
+    gap: 8px;
+}
+
+.employee-options button {
+    display: flex;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+    padding: 10px 12px;
+    border: 1px solid #e2e5e9;
+    border-radius: 6px;
+    color: #30343b;
+    background-color: #f8f9fa;
+    text-align: left;
+}
+
+.employee-options button:hover,
+.change-button:hover {
+    background-color: #f1f3f5;
+}
+
+.employee-options span {
+    color: #6b7280;
+    font-size: 13px;
 }
 
 .confirmation-popup h2 {
@@ -188,5 +250,25 @@ button:disabled {
 
     .assignment {
         grid-template-columns: 1fr;
+    }
+
+    .popup-background {
+        align-items: flex-start;
+        padding: 10px;
+    }
+
+    .confirmation-popup,
+    .employee-popup {
+        max-height: calc(100vh - 20px);
+        overflow-y: auto;
+        padding: 16px;
+    }
+
+    .popup-actions {
+        flex-wrap: wrap;
+    }
+
+    .popup-actions button {
+        flex: 1 1 120px;
     }
 }

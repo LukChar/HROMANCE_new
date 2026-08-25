@@ -23,13 +23,126 @@
     color: #6b7280;
 }
 
-.add-button {
+.header-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.add-button,
+.qualification-button {
     padding: 10px 16px;
-    background-color: #2563eb;
-    color: white;
     border-radius: 6px;
-    text-decoration: none;
     font-size: 14px;
+    text-decoration: none;
+}
+
+.add-button {
+    color: white;
+    background-color: #2563eb;
+}
+
+.qualification-button {
+    border: 1px solid #cfd4da;
+    color: #30343b;
+    background-color: white;
+    cursor: pointer;
+}
+
+.qualifications-popup {
+    max-width: 700px;
+    max-height: 85vh;
+    overflow: hidden;
+}
+
+.qualifications-popup-content {
+    max-height: calc(85vh - 105px);
+    padding-right: 4px;
+    overflow-y: auto;
+}
+
+.qualification-section h3 {
+    margin: 0 0 10px;
+    color: #30343b;
+    font-size: 16px;
+}
+
+.existing-qualifications {
+    margin-top: 22px;
+}
+
+.qualification-form {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    align-items: end;
+    gap: 10px;
+}
+
+.qualification-form button,
+.qualification-management-item button,
+.delete-question button {
+    padding: 8px 11px;
+    border: 1px solid #cfd4da;
+    border-radius: 6px;
+    background-color: white;
+    cursor: pointer;
+}
+
+.qualification-form .save-button {
+    border-color: #2563eb;
+    color: white;
+    background-color: #2563eb;
+}
+
+.qualification-management-item .delete-button,
+.delete-question .delete-button {
+    border-color: #fecaca;
+    color: #b91c1c;
+}
+
+.qualification-management-list {
+    display: grid;
+    gap: 8px;
+}
+
+.qualification-management-item {
+    display: flex;
+    padding: 10px 12px;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid #e2e5e9;
+    border-radius: 6px;
+    background-color: white;
+}
+
+.qualification-management-item div {
+    display: flex;
+    gap: 7px;
+}
+
+.delete-question {
+    display: flex;
+    margin-top: 14px;
+    padding: 12px;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    background-color: #fff7f7;
+}
+
+.delete-question span {
+    margin-right: auto;
+}
+
+.delete-question div {
+    display: flex;
+    gap: 7px;
+}
+
+.qualification-button:hover {
+    color: #202124;
+    background-color: #f5f6f7;
 }
 
 .add-button:hover {
@@ -201,6 +314,10 @@ tbody tr:last-child td {
     background-color: white;
 }
 
+.details-popup {
+    max-width: 760px;
+}
+
 .form-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -307,6 +424,69 @@ tbody tr:last-child td {
     font-size: 16px;
 }
 
+.monthly-overview {
+    margin-top: 4px;
+    overflow-x: auto;
+    border: 1px solid #e2e5e9;
+    border-radius: 6px;
+}
+
+.monthly-row {
+    display: grid;
+    min-width: 650px;
+    grid-template-columns: 1.5fr repeat(5, 1fr);
+    gap: 10px;
+    padding: 9px 11px;
+    border-bottom: 1px solid #eceef0;
+    align-items: center;
+}
+
+.monthly-row:last-child {
+    border-bottom: 0;
+}
+
+.monthly-header {
+    color: #606770;
+    background-color: #f8f9fa;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.worktime-entries {
+    overflow-x: auto;
+    border: 1px solid #e2e5e9;
+    border-radius: 6px;
+}
+
+.worktime-entry {
+    display: grid;
+    min-width: 650px;
+    grid-template-columns: 1fr 1.2fr 0.8fr 0.8fr 1.8fr;
+    gap: 10px;
+    padding: 9px 11px;
+    border-bottom: 1px solid #eceef0;
+    align-items: center;
+}
+
+.worktime-entry:last-child {
+    border-bottom: 0;
+}
+
+.worktime-header {
+    color: #606770;
+    background-color: #f8f9fa;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.positive-balance {
+    color: #166534;
+}
+
+.negative-balance {
+    color: #991b1b;
+}
+
 .popup-actions {
     display: flex;
     justify-content: flex-end;
@@ -350,6 +530,15 @@ tbody tr:last-child td {
 }
 
 @media (max-width: 800px) {
+    .qualification-form {
+        grid-template-columns: 1fr;
+    }
+
+    .qualification-management-item,
+    .delete-question {
+        align-items: stretch;
+        flex-direction: column;
+    }
     .overview {
         grid-template-columns: 1fr;
     }
@@ -362,12 +551,35 @@ tbody tr:last-child td {
         display: block;
     }
 
-    .add-button {
-        display: inline-block;
+    .header-actions {
+        align-items: flex-start;
+        flex-direction: column;
         margin-top: 15px;
     }
 
     .form-grid {
         grid-template-columns: 1fr;
+    }
+
+    .popup-background {
+        align-items: flex-start;
+        padding: 10px;
+    }
+
+    .entry-popup {
+        max-height: calc(100vh - 20px);
+        overflow-y: auto;
+        padding: 16px;
+    }
+
+    .popup-actions {
+        flex-wrap: wrap;
+    }
+
+    .popup-actions button,
+    .popup-actions .edit-button,
+    .popup-actions .save-button {
+        flex: 1 1 130px;
+        text-align: center;
     }
 }

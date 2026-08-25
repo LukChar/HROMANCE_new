@@ -12,6 +12,7 @@
 .DS_Store
 .vscode/
 .idea/
+HRomance.Tests/
 
 # Local SQLite database
 HRomance/Data/app.db

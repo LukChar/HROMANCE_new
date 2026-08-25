@@ -19,9 +19,14 @@
             <p>Übersicht über alle Mitarbeiter</p>
         </div>
 
-        <a href="/mitarbeiter/create" class="add-button">
-            Mitarbeiter hinzufügen
-        </a>
+        <div class="header-actions">
+            <button type="button" class="qualification-button" @onclick="QualifikationenOeffnen">
+                Qualifikationen verwalten
+            </button>
+            <a href="/mitarbeiter/create" class="add-button">
+                Mitarbeiter hinzufügen
+            </a>
+        </div>
     </div>
 
     <div class="overview">
@@ -160,10 +165,76 @@
 
 </div>
 
+@if (qualifikationenPopupSichtbar)
+{
+    <div class="popup-background" @onclick="QualifikationenSchliessen">
+        <div class="entry-popup qualifications-popup" @onclick:stopPropagation="true">
+            <h2>Qualifikationen verwalten</h2>
+
+            <div class="qualifications-popup-content">
+                <section class="qualification-section">
+                    <h3>@(qualifikationFormular.Id == 0 ? "Neue Qualifikation" : "Qualifikation bearbeiten")</h3>
+
+                    <EditForm Model="qualifikationFormular" OnValidSubmit="QualifikationSpeichern" FormName="QualifikationPopupFormular">
+                        <DataAnnotationsValidator />
+
+                        <div class="qualification-form">
+                            <div class="form-group">
+                                <label>Name</label>
+                                <InputText class="form-input" @bind-Value="qualifikationFormular.Name" />
+                                <ValidationMessage For="@(() => qualifikationFormular.Name)" />
+                            </div>
+                            @if (qualifikationFormular.Id != 0)
+                            {
+                                <button type="button" @onclick="QualifikationBearbeitenAbbrechen">Abbrechen</button>
+                            }
+                            <button type="submit" class="save-button">
+                                @(qualifikationFormular.Id == 0 ? "Hinzufügen" : "Speichern")
+                            </button>
+                        </div>
+                    </EditForm>
+                </section>
+
+                <section class="qualification-section existing-qualifications">
+                    <h3>Vorhandene Qualifikationen</h3>
+
+                    <div class="qualification-management-list">
+                        @foreach (var qualifikation in qualifikationen)
+                        {
+                            <div class="qualification-management-item">
+                                <strong>@qualifikation.Name</strong>
+                                <div>
+                                    <button type="button" @onclick="() => QualifikationBearbeiten(qualifikation)">Bearbeiten</button>
+                                    <button type="button" class="delete-button" @onclick="() => QualifikationLoeschenBestaetigen(qualifikation)">Löschen</button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </section>
+
+                @if (qualifikationZumLoeschen != null)
+                {
+                    <div class="delete-question">
+                        <span><strong>@qualifikationZumLoeschen.Name</strong> wirklich löschen?</span>
+                        <div>
+                            <button type="button" @onclick="QualifikationLoeschenAbbrechen">Abbrechen</button>
+                            <button type="button" class="delete-button" @onclick="QualifikationLoeschen">Löschen</button>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="popup-actions">
+                <button type="button" @onclick="QualifikationenSchliessen">Schließen</button>
+            </div>
+        </div>
+    </div>
+}
+
 @if (ausgewaehlterMitarbeiter != null)
 {
     <div class="popup-background" @onclick="DetailsSchliessen">
-        <div class="entry-popup" @onclick:stopPropagation="true">
+        <div class="entry-popup details-popup" @onclick:stopPropagation="true">
             <h2>Mitarbeiterdetails</h2>
 
             <div class="popup-details">
@@ -179,11 +250,60 @@
                 <span>Verfügbarkeit: @(ausgewaehlterMitarbeiter.Verfuegbar ? "Verfügbar" : "Nicht verfügbar")</span>
                 <span>Qualifikationen: @QualifikationenAnzeigen(ausgewaehlterMitarbeiter)</span>
 
-                <h3>Arbeitszeit – @AktuellerMonat()</h3>
-                <span>Arbeitszeit: @DezimalstundenAnzeigen(monatsArbeitszeit) h</span>
-                <span>Abwesenheit: @AbwesenheitstageAnzeigen()</span>
-                <span>Soll: @DezimalstundenAnzeigen(monatsSoll) h</span>
-                <span>Saldo: @SaldoAnzeigen(monatsSaldo) h</span>
+                <h3>Arbeitszeit – Monatsübersicht</h3>
+                <div class="monthly-overview">
+                    <div class="monthly-row monthly-header">
+                        <span>Monat</span>
+                        <span>Ist</span>
+                        <span>Soll</span>
+                        <span>Monatssaldo</span>
+                        <span>Laufend</span>
+                        <span>Abwesenheit</span>
+                    </div>
+                    @foreach (var monat in monatsuebersicht)
+                    {
+                        <div class="monthly-row">
+                            <strong>@MonatAnzeigen(monat)</strong>
+                            <span>@DezimalstundenAnzeigen(monat.Ist) h</span>
+                            <span>@DezimalstundenAnzeigen(monat.Soll) h</span>
+                            <span class="@(monat.Saldo < 0 ? "negative-balance" : "positive-balance")">
+                                @SaldoAnzeigen(monat.Saldo) h
+                            </span>
+                            <span class="@(monat.LaufenderSaldo < 0 ? "negative-balance" : "positive-balance")">
+                                @SaldoAnzeigen(monat.LaufenderSaldo) h
+                            </span>
+                            <span>@AbwesenheitstageAnzeigen(monat.Abwesenheitstage)</span>
+                        </div>
+                    }
+                </div>
+
+                <h3>Arbeitszeiteinträge</h3>
+                @if (arbeitszeiteintraege.Count == 0)
+                {
+                    <p>Es sind noch keine Arbeitszeiteinträge vorhanden.</p>
+                }
+                else
+                {
+                    <div class="worktime-entries">
+                        <div class="worktime-entry worktime-header">
+                            <span>Datum</span>
+                            <span>Zeit</span>
+                            <span>Pause</span>
+                            <span>Stunden</span>
+                            <span>Notiz</span>
+                        </div>
+                        @foreach (var arbeitszeit in arbeitszeiteintraege)
+                        {
+                            <div class="worktime-entry">
+                                <strong>@arbeitszeit.Datum.ToString("dd.MM.yyyy")</strong>
+                                <span>@ArbeitszeitService.ZeitraumAnzeigen(arbeitszeit.Beginn, arbeitszeit.Ende)</span>
+                                <span>@arbeitszeit.PauseMinuten min</span>
+                                <span>@DezimalstundenAnzeigen(ArbeitszeitService.BerechneArbeitsstunden(arbeitszeit)) h</span>
+                                <span>@(string.IsNullOrWhiteSpace(arbeitszeit.Notiz) ? "–" : arbeitszeit.Notiz)</span>
+                            </div>
+                        }
+                    </div>
+                }
             </div>
 
             <div class="popup-actions">
@@ -302,10 +422,11 @@
     private List<int> ausgewaehlteQualifikationIds = new();
     private string qualifikationssuche = string.Empty;
     private bool bearbeitenPopupSichtbar;
-    private double monatsArbeitszeit;
-    private double monatsSoll;
-    private int monatsAbwesenheitstage;
-    private double monatsSaldo;
+    private List<ArbeitszeitMonat> monatsuebersicht = new();
+    private List<Arbeitszeit> arbeitszeiteintraege = new();
+    private bool qualifikationenPopupSichtbar;
+    private Qualifikation qualifikationFormular = new();
+    private Qualifikation? qualifikationZumLoeschen;
 
     protected override async Task OnInitializedAsync()
     {
@@ -379,27 +500,102 @@
 
     private async Task DetailsOeffnen(Mitarbeiter mitarbeiter)
     {
-        var auswertung = await ArbeitszeitService.GetMonatsauswertungAsync(
+        monatsuebersicht = await ArbeitszeitService.GetMonatsuebersichtAsync(
             mitarbeiter.Id,
-            DateTime.Today.Year,
-            DateTime.Today.Month,
             mitarbeiter.Wochenarbeitszeit,
+            6,
             DateTime.Today);
 
-        monatsArbeitszeit = auswertung.Arbeitszeit;
-        monatsSoll = auswertung.Soll;
-        monatsAbwesenheitstage = auswertung.Abwesenheitstage;
-        monatsSaldo = auswertung.Saldo;
+        arbeitszeiteintraege = await ArbeitszeitService.GetByMitarbeiterAsync(mitarbeiter.Id);
+        arbeitszeiteintraege = arbeitszeiteintraege
+            .OrderByDescending(a => a.Datum)
+            .ThenByDescending(a => a.Beginn)
+            .Take(20)
+            .ToList();
+
         ausgewaehlterMitarbeiter = mitarbeiter;
     }
 
     private void DetailsSchliessen()
     {
         ausgewaehlterMitarbeiter = null;
-        monatsArbeitszeit = 0;
-        monatsSoll = 0;
-        monatsAbwesenheitstage = 0;
-        monatsSaldo = 0;
+        monatsuebersicht.Clear();
+        arbeitszeiteintraege.Clear();
+    }
+
+    private void QualifikationenOeffnen()
+    {
+        qualifikationFormular = new Qualifikation();
+        qualifikationZumLoeschen = null;
+        qualifikationenPopupSichtbar = true;
+    }
+
+    private void QualifikationenSchliessen()
+    {
+        qualifikationenPopupSichtbar = false;
+        qualifikationFormular = new Qualifikation();
+        qualifikationZumLoeschen = null;
+    }
+
+    private void QualifikationBearbeiten(Qualifikation qualifikation)
+    {
+        qualifikationFormular = new Qualifikation
+        {
+            Id = qualifikation.Id,
+            Name = qualifikation.Name
+        };
+        qualifikationZumLoeschen = null;
+    }
+
+    private void QualifikationBearbeitenAbbrechen()
+    {
+        qualifikationFormular = new Qualifikation();
+    }
+
+    private async Task QualifikationSpeichern()
+    {
+        if (qualifikationFormular.Id == 0)
+        {
+            await QualifikationService.AddAsync(qualifikationFormular);
+        }
+        else
+        {
+            await QualifikationService.UpdateAsync(qualifikationFormular);
+        }
+
+        await QualifikationenNeuLaden();
+        qualifikationFormular = new Qualifikation();
+    }
+
+    private void QualifikationLoeschenBestaetigen(Qualifikation qualifikation)
+    {
+        qualifikationZumLoeschen = qualifikation;
+    }
+
+    private void QualifikationLoeschenAbbrechen()
+    {
+        qualifikationZumLoeschen = null;
+    }
+
+    private async Task QualifikationLoeschen()
+    {
+        if (qualifikationZumLoeschen == null)
+        {
+            return;
+        }
+
+        await QualifikationService.DeleteAsync(qualifikationZumLoeschen.Id);
+        await QualifikationenNeuLaden();
+        qualifikationZumLoeschen = null;
+        qualifikationFormular = new Qualifikation();
+    }
+
+    private async Task QualifikationenNeuLaden()
+    {
+        qualifikationen = await QualifikationService.GetAllAsync();
+        mitarbeiterListe = await MitarbeiterService.GetAllAsync();
+        MitarbeiterzahlenBerechnen();
+        FilterAnwenden();
     }
 
     private void BearbeitenOeffnen(Mitarbeiter mitarbeiter)
@@ -506,10 +702,10 @@
         return namen == string.Empty ? "Keine Qualifikationen zugewiesen" : namen;
     }
 
-    private string AktuellerMonat()
+    private string MonatAnzeigen(ArbeitszeitMonat monat)
     {
         var kultur = System.Globalization.CultureInfo.GetCultureInfo("de-DE");
-        return DateTime.Today.ToString("MMMM yyyy", kultur);
+        return new DateTime(monat.Jahr, monat.Monat, 1).ToString("MMMM yyyy", kultur);
     }
 
     private string DezimalstundenAnzeigen(double stunden)
@@ -518,11 +714,11 @@
         return Math.Round(stunden, 1).ToString("0.0", kultur);
     }
 
-    private string AbwesenheitstageAnzeigen()
+    private string AbwesenheitstageAnzeigen(int abwesenheitstage)
     {
-        return monatsAbwesenheitstage == 1
+        return abwesenheitstage == 1
             ? "1 Tag"
-            : monatsAbwesenheitstage + " Tage";
+            : abwesenheitstage + " Tage";
     }
 
     private string SaldoAnzeigen(double stunden)

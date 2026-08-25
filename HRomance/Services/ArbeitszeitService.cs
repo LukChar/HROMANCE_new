@@ -241,6 +241,7 @@ public class ArbeitszeitService
         {
             if (tag.DayOfWeek != DayOfWeek.Saturday
                 && tag.DayOfWeek != DayOfWeek.Sunday
+                && !IstGesetzlicherFeiertag(tag)
                 && !HatSollreduzierendeAbwesenheit(abwesenheiten, mitarbeiterId, tag))
             {
                 sollstunden += sollstundenProTag;
@@ -255,6 +256,50 @@ public class ArbeitszeitService
     public double BerechneSaldo(double iststunden, double sollstunden)
     {
         return iststunden - sollstunden;
+    }
+
+    public bool IstGesetzlicherFeiertag(DateTime datum)
+    {
+        var tag = datum.Date;
+        var ostersonntag = BerechneOstersonntag(tag.Year);
+
+        if (tag == new DateTime(tag.Year, 1, 1)
+            || tag == new DateTime(tag.Year, 1, 6)
+            || tag == new DateTime(tag.Year, 5, 1)
+            || tag == new DateTime(tag.Year, 8, 15)
+            || tag == new DateTime(tag.Year, 10, 26)
+            || tag == new DateTime(tag.Year, 11, 1)
+            || tag == new DateTime(tag.Year, 12, 8)
+            || tag == new DateTime(tag.Year, 12, 25)
+            || tag == new DateTime(tag.Year, 12, 26))
+        {
+            return true;
+        }
+
+        return tag == ostersonntag.AddDays(1)
+            || tag == ostersonntag.AddDays(39)
+            || tag == ostersonntag.AddDays(50)
+            || tag == ostersonntag.AddDays(60);
+    }
+
+    private DateTime BerechneOstersonntag(int jahr)
+    {
+        var a = jahr % 19;
+        var b = jahr / 100;
+        var c = jahr % 100;
+        var d = b / 4;
+        var e = b % 4;
+        var f = (b + 8) / 25;
+        var g = (b - f + 1) / 3;
+        var h = (19 * a + b - d - g + 15) % 30;
+        var i = c / 4;
+        var k = c % 4;
+        var l = (32 + 2 * e + 2 * i - h - k) % 7;
+        var m = (a + 11 * h + 22 * l) / 451;
+        var monat = (h + l - 7 * m + 114) / 31;
+        var tag = (h + l - 7 * m + 114) % 31 + 1;
+
+        return new DateTime(jahr, monat, tag);
     }
 
     private bool HatSollreduzierendeAbwesenheit(
@@ -321,7 +366,10 @@ public class ArbeitszeitService
                 }
                 else
                 {
-                    sollstunden += tagesSoll;
+                    if (!IstGesetzlicherFeiertag(tag))
+                    {
+                        sollstunden += tagesSoll;
+                    }
 
                     foreach (var arbeitszeit in arbeitszeiten)
                     {
@@ -393,5 +441,52 @@ public class ArbeitszeitService
             monat,
             wochenarbeitszeit,
             aktuellesDatum);
+    }
+
+    public async Task<List<ArbeitszeitMonat>> GetMonatsuebersichtAsync(
+        int mitarbeiterId,
+        double wochenarbeitszeit,
+        int anzahlMonate,
+        DateTime aktuellesDatum)
+    {
+        var monate = new List<ArbeitszeitMonat>();
+        var alleArbeitszeiten = await GetByMitarbeiterAsync(mitarbeiterId);
+        var alleAbwesenheiten = await _context.Abwesenheiten
+            .Where(a => a.MitarbeiterId == mitarbeiterId)
+            .ToListAsync();
+        var ersterMonat = new DateTime(aktuellesDatum.Year, aktuellesDatum.Month, 1);
+
+        for (var i = 0; i < anzahlMonate; i++)
+        {
+            var monat = ersterMonat.AddMonths(-i);
+            var auswertung = BerechneMonatsauswertung(
+                alleArbeitszeiten,
+                alleAbwesenheiten,
+                mitarbeiterId,
+                monat.Year,
+                monat.Month,
+                wochenarbeitszeit,
+                aktuellesDatum);
+
+            monate.Add(new ArbeitszeitMonat
+            {
+                Jahr = monat.Year,
+                Monat = monat.Month,
+                Ist = auswertung.Arbeitszeit,
+                Soll = auswertung.Soll,
+                Saldo = auswertung.Saldo,
+                Abwesenheitstage = auswertung.Abwesenheitstage
+            });
+        }
+
+        var laufenderSaldo = 0.0;
+
+        for (var i = monate.Count - 1; i >= 0; i--)
+        {
+            laufenderSaldo += monate[i].Saldo;
+            monate[i].LaufenderSaldo = laufenderSaldo;
+        }
+
+        return monate;
     }
 }

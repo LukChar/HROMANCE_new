@@ -173,7 +173,8 @@
 .calendar-container {
     width: 100%;
     min-width: 0;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 
 .calendar-grid {
@@ -752,8 +753,13 @@ textarea.form-input {
     }
 
     .month-navigation h2 {
-        min-width: 140px;
+        min-width: 0;
+        flex: 1;
         font-size: 17px;
+    }
+
+    .calendar-grid {
+        min-width: 630px;
     }
 
     .day-view-header {
@@ -770,5 +776,20 @@ textarea.form-input {
 
     .full-width {
         grid-column: auto;
+    }
+
+    .popup-background {
+        align-items: flex-start;
+        padding: 10px;
+    }
+
+    .entry-popup,
+    .day-popup {
+        max-height: calc(100vh - 20px);
+        padding: 16px;
+    }
+
+    .popup-actions button {
+        flex: 1 1 120px;
     }
 }

@@ -1,4 +1,6 @@
 .dashboard-page {
+    width: 100%;
+    min-width: 0;
     max-width: 1400px;
     margin: 0 auto;
 }
@@ -48,12 +50,9 @@
     margin-bottom: 18px;
 }
 
-.working-time-overview {
-    margin-bottom: 18px;
-}
-
 .summary-card,
 .dashboard-section {
+    min-width: 0;
     border: 1px solid #e2e5e9;
     border-radius: 8px;
     background-color: white;
@@ -92,11 +91,72 @@
     gap: 14px;
 }
 
-.personal-grid {
+.personal-dashboard-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     align-items: start;
     gap: 14px;
+}
+
+.management-overview {
+    margin-top: 26px;
+}
+
+.management-heading {
+    margin-bottom: 14px;
+}
+
+.management-heading h2 {
+    margin: 0;
+    color: #202124;
+    font-size: 22px;
+}
+
+.management-heading p {
+    margin: 5px 0 0;
+    color: #6b7280;
+}
+
+.management-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    align-items: start;
+    gap: 14px;
+}
+
+.management-grid > * {
+    min-width: 0;
+}
+
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th {
+    padding: 11px 14px;
+    border-bottom: 1px solid #e2e5e9;
+    color: #606770;
+    background-color: #f8f9fa;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: left;
+}
+
+td {
+    padding: 11px 14px;
+    border-bottom: 1px solid #eceef0;
+    color: #30343b;
+    font-size: 14px;
+}
+
+tbody tr:last-child td {
+    border-bottom: 0;
 }
 
 .today-orders {
@@ -182,10 +242,7 @@
 }
 
 .working-time-content {
-    display: flex;
     padding: 15px 16px;
-    align-items: center;
-    gap: 24px;
 }
 
 .employee-selection {
@@ -212,9 +269,9 @@
 
 .working-time-value {
     display: flex;
-    margin-left: auto;
     flex-direction: column;
-    min-width: 220px;
+    width: 100%;
+    min-width: 0;
     gap: 4px;
 }
 
@@ -226,6 +283,33 @@
 .working-time-value strong {
     color: #202124;
     font-size: 14px;
+}
+
+.month-navigation {
+    display: grid;
+    grid-template-columns: 32px 1fr 32px;
+    align-items: center;
+    gap: 8px;
+}
+
+.month-navigation span {
+    text-align: center;
+}
+
+.month-navigation button {
+    width: 32px;
+    height: 30px;
+    border: 1px solid #cfd4da;
+    border-radius: 6px;
+    color: #30343b;
+    background-color: white;
+    cursor: pointer;
+}
+
+.month-navigation button:disabled {
+    color: #a5abb3;
+    background-color: #f5f6f7;
+    cursor: default;
 }
 
 .working-time-row {
@@ -360,12 +444,20 @@ textarea.form-input {
     .summary-grid {
         grid-template-columns: 1fr 1fr;
     }
+
+    .management-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .personal-dashboard-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 650px) {
     .summary-grid,
     .dashboard-grid,
-    .personal-grid {
+    .personal-dashboard-grid {
         grid-template-columns: 1fr;
     }
 
@@ -402,5 +494,28 @@ textarea.form-input {
 
     .full-width {
         grid-column: auto;
+    }
+
+    .month-navigation {
+        gap: 8px;
+    }
+
+    .popup-background {
+        align-items: flex-start;
+        padding: 10px;
+    }
+
+    .entry-popup {
+        max-height: calc(100vh - 20px);
+        overflow-y: auto;
+        padding: 16px;
+    }
+
+    .popup-actions {
+        flex-wrap: wrap;
+    }
+
+    .popup-actions button {
+        flex: 1 1 120px;
     }
 }
