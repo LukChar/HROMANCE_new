@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="HRomance/HRomance.csproj" />
+  <Project Path="HRomance.Tests/HRomance.Tests.csproj" />
 </Solution>
